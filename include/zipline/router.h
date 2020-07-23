@@ -30,7 +30,7 @@ namespace zipline {
                 ERROR() << "Event (" << event << ") does not exist";
 
                 proto.write(false);
-                proto.write_string("no such event");
+                proto.write(std::string("no such event"));
 
                 return;
             }
@@ -40,7 +40,7 @@ namespace zipline {
             }
             catch (const std::exception& ex) {
                 proto.write(false);
-                proto.write_string(ex.what());
+                proto.write(ex.what());
             }
         }
     };
