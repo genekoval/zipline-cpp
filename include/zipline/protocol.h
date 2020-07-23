@@ -38,6 +38,11 @@ namespace zipline {
             else throw std::runtime_error(read<std::string>());
         }
 
+        auto wait_for_ack() -> void {
+            if (read<bool>()) return;
+            else throw std::runtime_error(read<std::string>());
+        }
+
         template <typename T>
         auto write(const T& t) const -> void {
             transfer<Socket, T>::write(*sock, t);

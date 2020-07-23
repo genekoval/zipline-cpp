@@ -1,1 +1,2 @@
+#include <zipline/client.h>
 #include <zipline/router.h>
