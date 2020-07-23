@@ -39,8 +39,7 @@ namespace zipline {
                 endpoint(proto);
             }
             catch (const std::exception& ex) {
-                proto.write(false);
-                proto.write(ex.what());
+                proto.error(ex.what());
             }
         }
     };
