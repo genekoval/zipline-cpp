@@ -4,6 +4,7 @@
 
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 namespace zipline {
     template <typename Socket>
@@ -19,17 +20,23 @@ namespace zipline {
             write(message);
         }
 
-        template <typename T>
-        auto read() const -> T {
-            return transfer<Socket, T>::read(*sock);
+        template <typename T, typename U = std::remove_reference_t<T>>
+        auto read() const -> Type {
+            return transfer<Socket, U>::read(*sock);
         }
 
-        auto reply() const -> void { write(true); }
+        template <typename R, typename ...Args>
+        auto reply(R (*callable)(Args...)) -> void {
+            const auto result = callable((read<Args>(), ...));
 
-        template <typename T>
-        auto reply(const T& t) const -> void {
             write(true);
-            write(t);
+            write(result);
+        }
+
+        template <typename ...Args>
+        auto reply(void (*callable)(Args...)) -> void {
+            callable((read<Args>(), ...));
+            write(true);
         }
 
         template <typename T>
