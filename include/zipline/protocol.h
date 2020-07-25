@@ -21,7 +21,7 @@ namespace zipline {
         }
 
         template <typename T, typename U = std::remove_reference_t<T>>
-        auto read() const -> Type {
+        auto read() const -> U {
             return transfer<Socket, U>::read(*sock);
         }
 

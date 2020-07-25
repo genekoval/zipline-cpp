@@ -60,10 +60,6 @@ namespace zipline {
 
     template <typename Socket>
     struct transfer<Socket, std::string_view> {
-        static auto read(const Socket& sock) -> std::string {
-            return read_array<Socket, std::string>(sock, '\0');
-        }
-
         static auto write(
             const Socket& sock,
             const std::string_view& string
