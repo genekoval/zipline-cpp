@@ -41,7 +41,8 @@ namespace zipline {
                 endpoint(proto);
             }
             catch (const std::exception& ex) {
-                proto.error(ex.what());
+                ERROR() << ex.what();
+                proto.error("internal server error");
             }
         }
     };
