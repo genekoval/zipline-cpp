@@ -11,6 +11,15 @@ namespace zipline {
         using handler = void (*)(Protocol&);
 
         const std::array<handler, N> endpoints;
+
+        auto get(EventT event) const -> handler {
+            try {
+                return endpoints.at(event);
+            }
+            catch (const std::out_of_range&) {
+                return nullptr;
+            }
+        }
     public:
         template <typename ...Events>
         router(Events&&... events) : endpoints { events... } {}
@@ -21,17 +30,10 @@ namespace zipline {
 
             DEBUG() << "Event received: " << event;
 
-            handler endpoint = nullptr;
-
-            try {
-                endpoint = endpoints.at(event);
-            }
-            catch (const std::out_of_range& ex) {
+            auto endpoint = get(event);
+            if (!endpoint) {
                 ERROR() << "Event (" << event << ") does not exist";
-
-                proto.write(false);
-                proto.write(std::string("no such event"));
-
+                proto.error("no such event");
                 return;
             }
 
@@ -47,15 +49,16 @@ namespace zipline {
     template <
         typename Protocol,
         typename EventT,
-        typename ...Events
+        typename ...Events,
+        typename Router = router<Protocol, EventT, sizeof...(Events)>
     >
     auto make_router(
         Events&&... events
-    ) -> router<Protocol, EventT, sizeof...(Events)> {
+    ) -> Router {
         DEBUG()
             << "Generating event router with ("
             << sizeof...(Events)
             << ") events";
-        return router<Protocol, EventT, sizeof...(Events)>(events...);
+        return Router(events...);
     }
 }

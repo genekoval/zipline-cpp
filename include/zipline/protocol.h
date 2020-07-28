@@ -9,6 +9,7 @@
 namespace zipline {
     template <typename Socket>
     class protocol {
+    protected:
         const Socket* sock;
     public:
         using socket_type = Socket;
