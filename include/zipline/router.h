@@ -24,8 +24,7 @@ namespace zipline {
         template <typename ...Events>
         router(Events&&... events) : endpoints { events... } {}
 
-        auto route(const Protocol::socket_type& sock) const -> void {
-            auto proto = Protocol(sock);
+        auto route(Protocol&& proto) const -> void {
             auto event = proto.template read<EventT>();
 
             DEBUG() << "Event received: " << event;
