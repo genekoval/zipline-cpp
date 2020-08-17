@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 
 namespace zipline {
@@ -41,6 +42,26 @@ namespace zipline {
 
         static auto write(const Socket& sock, const T& t) -> void {
             sock.send(&t, sizeof(T));
+        }
+    };
+
+    template <typename Socket, typename T>
+    struct transfer<Socket, std::optional<T>> {
+        static auto read(const Socket& sock) -> std::optional<T> {
+            auto has_value = transfer<Socket, bool>::read(sock);
+
+            if (has_value) return transfer<Socket, T>::read(sock);
+            return {};
+        }
+
+        static auto write(
+            const Socket& sock,
+            const std::optional<T> opt
+        ) -> void {
+            auto has_value = opt.has_value();
+            transfer<Socket, bool>::write(sock, has_value);
+
+            if (has_value) transfer<Socket, T>::write(sock, opt.value());
         }
     };
 
