@@ -32,7 +32,7 @@ namespace zipline {
             auto endpoint = get(event);
             if (!endpoint) {
                 ERROR() << "Event (" << event << ") does not exist";
-                proto.error("no such event");
+                proto.write_error("no such event");
                 return;
             }
 
@@ -41,7 +41,7 @@ namespace zipline {
             }
             catch (const std::exception& ex) {
                 ERROR() << ex.what();
-                proto.error("internal server error");
+                proto.write_error(ex.what());
             }
         }
     };
