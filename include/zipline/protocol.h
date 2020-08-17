@@ -24,18 +24,15 @@ namespace zipline {
         auto read_error() const -> std::runtime_error {
             return std::runtime_error(read<std::string>());
         }
-        template <typename R, typename ...Args>
-        auto reply(R (*callable)(Args...)) -> void {
-            const auto result = callable((read<Args>(), ...));
 
+        auto reply() -> void {
             write(true);
-            write(result);
         }
 
-        template <typename ...Args>
-        auto reply(void (*callable)(Args...)) -> void {
-            callable((read<Args>(), ...));
+        template <typename T>
+        auto reply(T&& t) -> void {
             write(true);
+            write(t);
         }
 
         template <typename T>
