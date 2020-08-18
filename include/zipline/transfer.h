@@ -65,6 +65,24 @@ namespace zipline {
         }
     };
 
+    template <typename Socket, typename T1, typename T2>
+    struct transfer<Socket, std::pair<T1, T2>> {
+        static auto read(const Socket& sock) -> std::pair<T1, T2> {
+            auto t1 = transfer<Socket, T1>::read(sock);
+            auto t2 = transfer<Socket, T2>::read(sock);
+
+            return std::make_pair(std::move(t1), std::move(t2));
+        }
+
+        static auto write(
+            const Socket& sock,
+            const std::pair<T1, T2>& pair
+        ) -> void {
+            transfer<Socket, T1>::write(sock, std::get<0>(pair));
+            transfer<Socket, T2>::write(sock, std::get<1>(pair));
+        }
+    };
+
     template <typename Socket>
     struct transfer<Socket, std::string> {
         static auto read(const Socket& sock) -> std::string {
@@ -86,6 +104,20 @@ namespace zipline {
             const std::string_view& string
         ) -> void {
             write_array<Socket, std::string_view>(sock, string);
+        }
+    };
+
+    template <typename Socket, typename T>
+    struct transfer<Socket, std::vector<T>> {
+        static auto read(const Socket& sock) -> std::vector<T> {
+            return read_array<Socket, std::vector<T>>(sock);
+        }
+
+        static auto write(
+            const Socket& sock,
+            const std::vector<T>& vector
+        ) -> void {
+            write_array<Socket, std::vector<T>>(sock, vector);
         }
     };
 }
