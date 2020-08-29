@@ -1,7 +1,9 @@
 #pragma once
 
 #include <optional>
+#include <span>
 #include <string>
+#include <vector>
 
 namespace zipline {
     template <
@@ -80,6 +82,16 @@ namespace zipline {
         ) -> void {
             transfer<Socket, T1>::write(sock, std::get<0>(pair));
             transfer<Socket, T2>::write(sock, std::get<1>(pair));
+        }
+    };
+
+    template <typename Socket, typename T>
+    struct transfer<Socket, std::span<const T>> {
+        static auto write(
+            const Socket& sock,
+            const std::span<const T> span
+        ) -> void {
+            write_array<Socket, std::span<const T>>(sock, span);
         }
     };
 
