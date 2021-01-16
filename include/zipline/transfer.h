@@ -3,6 +3,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <timber/timber>
 #include <vector>
 
 namespace zipline {
@@ -116,20 +117,42 @@ namespace zipline {
             const std::string_view& string
         ) -> void {
             write_array<Socket, std::string_view>(sock, string);
+            DEBUG() << "write: " << string;
         }
     };
 
     template <typename Socket, typename T>
     struct transfer<Socket, std::vector<T>> {
         static auto read(const Socket& sock) -> std::vector<T> {
-            return read_array<Socket, std::vector<T>>(sock);
+            using size_type = typename std::vector<T>::size_type;
+
+            auto size = size_type();
+            sock.recv(&size, sizeof(size_type));
+            DEBUG() << "read vector size: " << size;
+
+            auto container = std::vector<T>();
+
+            for (size_type i = 0; i < size; ++i) {
+                container.push_back(transfer<Socket, T>::read(sock));
+            }
+
+            return container;
         }
 
         static auto write(
             const Socket& sock,
             const std::vector<T>& vector
         ) -> void {
-            write_array<Socket, std::vector<T>>(sock, vector);
+            using size_type = typename std::vector<T>::size_type;
+
+            const auto size = vector.size();
+            sock.send(&size, sizeof(size_type));
+            DEBUG() << "write vector size: " << size;
+
+            for (size_type i = 0; i < size; ++i) {
+                DEBUG() << "write vector [" << i << "]";
+                transfer<Socket, T>::write(sock, vector[i]);
+            }
         }
     };
 }
