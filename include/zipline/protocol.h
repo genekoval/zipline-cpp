@@ -4,6 +4,7 @@
 
 #include <string>
 #include <string_view>
+#include <timber/timber>
 #include <type_traits>
 
 namespace zipline {
@@ -26,12 +27,12 @@ namespace zipline {
         }
 
         auto reply() -> void {
-            write(true);
+            write_success();
         }
 
         template <typename T>
         auto reply(T&& t) -> void {
-            write(true);
+            write_success();
             write(t);
         }
 
@@ -52,8 +53,18 @@ namespace zipline {
         }
 
         auto write_error(std::string_view message) const -> void {
-            write(false);
+            write_failure();
             write(message);
+        }
+
+        auto write_failure() const -> void {
+            write(false);
+            DEBUG() << "write failure: " << false;
+        }
+
+        auto write_success() const -> void {
+            write(true);
+            DEBUG() << "write success: " << true;
         }
     };
 }

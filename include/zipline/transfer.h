@@ -16,6 +16,7 @@ namespace zipline {
     auto read_array(const Socket& sock, const T& value = T()) -> Container {
         auto size = size_type();
         sock.recv(&size, sizeof(size_type));
+        DEBUG() << "read array size: " << size;
 
         auto buffer = Container(size, value);
         sock.recv(buffer.data(), sizeof(T) * size);
@@ -32,6 +33,8 @@ namespace zipline {
     auto write_array(const Socket& sock, const Container& container) -> void {
         const auto size = container.size();
         sock.send(&size, sizeof(size_type));
+        DEBUG() << "write array size: " << size;
+
         sock.send(container.data(), sizeof(T) * size);
     }
 
@@ -65,6 +68,7 @@ namespace zipline {
             transfer<Socket, bool>::write(sock, has_value);
 
             if (has_value) transfer<Socket, T>::write(sock, opt.value());
+            else DEBUG() << "write optional: no value";
         }
     };
 
@@ -99,7 +103,25 @@ namespace zipline {
     template <typename Socket>
     struct transfer<Socket, std::string> {
         static auto read(const Socket& sock) -> std::string {
-            return read_array<Socket, std::string>(sock, '\0');
+            const auto string = read_array<Socket, std::string>(sock, '\0');
+
+            if (timber::reporting_level() >= timber::level::debug) {
+                const auto subsize = std::min(string.size(), 25UL);
+                const auto substr = string.substr(0, subsize);
+
+                DEBUG()
+                    << "read: " << substr
+                    << (subsize < string.size()
+                        ?
+                            " ...(" +
+                            std::to_string(string.size() - subsize) +
+                            " more)..."
+                        :
+                            ""
+                    );
+            }
+
+            return string;
         }
 
         static auto write(
@@ -107,6 +129,7 @@ namespace zipline {
             const std::string& string
         ) -> void {
             write_array<Socket, std::string>(sock, string);
+            DEBUG() << "write: " << string;
         }
     };
 
