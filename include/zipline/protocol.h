@@ -17,6 +17,10 @@ namespace zipline {
 
         protocol(const Socket& sock) : sock(&sock) {}
 
+        auto end() const -> void {
+            sock->end();
+        }
+
         template <typename T, typename U = std::remove_reference_t<T>>
         auto read() const -> U {
             return transfer<Socket, U>::read(*sock);
