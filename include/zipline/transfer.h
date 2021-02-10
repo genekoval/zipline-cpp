@@ -149,8 +149,8 @@ namespace zipline {
         static auto read(const Socket& sock) -> std::vector<T> {
             using size_type = typename std::vector<T>::size_type;
 
-            auto size = size_type();
-            sock.recv(&size, sizeof(size_type));
+            auto size = transfer<Socket, size_type>::read(sock);
+
             DEBUG() << "read vector size: " << size;
 
             auto container = std::vector<T>();
