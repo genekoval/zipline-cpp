@@ -1,2 +1,3 @@
 #include <zipline/client.h>
+#include <zipline/data_stream.h>
 #include <zipline/router.h>
