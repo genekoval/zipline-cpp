@@ -2,6 +2,7 @@
 
 #include <zipline/transfer.h>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <functional>
@@ -12,7 +13,7 @@ namespace zipline {
     class data_stream {
         using size_type = std::size_t;
 
-        static constexpr auto buffer_size = 8192;
+        static constexpr auto buffer_size = 8192UL;
 
         std::array<char, buffer_size> buffer;
         const Socket* sock;
@@ -20,16 +21,27 @@ namespace zipline {
         data_stream(const Socket& sock) : sock(&sock) {}
 
         template <typename Callable>
-        auto read(Callable callback) -> void {
+        auto read(Callable pipe) -> void {
             const auto total = transfer<Socket, size_type>::read(*sock);
-            auto received = size_type();
+            DEBUG() << *sock << " reading data stream: " << total << " bytes";
 
-            do {
-                const auto bytes = sock->recv(buffer.data(), buffer.size());
-                received += bytes;
+            auto remaining = total;
 
-                callback(std::span(buffer.begin(), bytes));
-            } while (received < total);
+            while (remaining > 0) {
+                const auto& size = std::min(remaining, buffer_size);
+                const auto bytes = sock->recv(buffer.data(), size);
+
+                remaining -= bytes;
+
+                if (bytes == 0) {
+                    ERROR()
+                        << "Data stream received EOF with "
+                        << remaining << " bytes remaining";
+                    throw std::runtime_error("received EOF");
+                }
+
+                pipe(std::span(buffer.begin(), bytes));
+            }
         }
     };
 
@@ -38,8 +50,7 @@ namespace zipline {
         using T = data_stream<Socket>;
 
         static auto read(const Socket& sock) -> T {
-            auto stream = T(sock);
-            return stream;
+            return T(sock);
         }
     };
 }
