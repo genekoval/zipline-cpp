@@ -16,16 +16,20 @@ namespace zipline {
         static constexpr auto buffer_size = 8192UL;
 
         std::array<char, buffer_size> buffer;
+        bool ready = false;
         const Socket* sock;
+        size_type stream_size;
     public:
         data_stream(const Socket& sock) : sock(&sock) {}
 
         template <typename Callable>
         auto read(Callable pipe) -> void {
-            const auto total = transfer<Socket, size_type>::read(*sock);
-            DEBUG() << *sock << " reading data stream: " << total << " bytes";
+            prepare();
 
-            auto remaining = total;
+            DEBUG()
+                << *sock << " reading data stream: " << stream_size << " bytes";
+
+            auto remaining = stream_size;
 
             while (remaining > 0) {
                 const auto& size = std::min(remaining, buffer_size);
@@ -42,6 +46,20 @@ namespace zipline {
 
                 pipe(std::span(buffer.begin(), bytes));
             }
+        }
+
+        auto prepare() -> void {
+            if (ready) return;
+
+            stream_size = transfer<Socket, size_type>::read(*sock);
+            ready = true;
+        }
+
+        auto size() -> size_type {
+            if (!ready) throw std::runtime_error(
+                "cannot get size: data stream not ready"
+            );
+            return stream_size;
         }
     };
 
