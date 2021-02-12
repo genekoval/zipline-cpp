@@ -8,14 +8,17 @@
 #include <type_traits>
 
 namespace zipline {
+    template <typename Socket>
     struct default_error_handler {
-        template <typename Socket>
         static auto throw_error(const Socket& sock) -> void {
             throw std::runtime_error(transfer<Socket, std::string>::read(sock));
         }
     };
 
-    template <typename Socket, typename ErrorHandler = default_error_handler>
+    template <
+        typename Socket,
+        typename ErrorHandler = default_error_handler<Socket>
+    >
     class protocol {
         auto unhandled_error() const -> std::runtime_error {
             return std::runtime_error("unhandled zipline error");
@@ -49,13 +52,13 @@ namespace zipline {
         template <typename T>
         auto response() const -> T {
             if (read<bool>()) return read<T>();
-            ErrorHandler::template throw_error<Socket>(*sock);
+            ErrorHandler::throw_error(*sock);
             throw unhandled_error();
         }
 
         auto wait_for_ack() -> void {
             if (read<bool>()) return;
-            ErrorHandler::template throw_error<Socket>(*sock);
+            ErrorHandler::throw_error(*sock);
             throw unhandled_error();
         }
 
