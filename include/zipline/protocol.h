@@ -67,6 +67,10 @@ namespace zipline {
             transfer<Socket, T>::write(*sock, t);
         }
 
+        auto write_bytes(std::span<const std::byte> bytes) -> void {
+            sock->send(bytes.data(), bytes.size());
+        }
+
         auto write_error(std::string_view message) const -> void {
             write_failure();
             write(message);

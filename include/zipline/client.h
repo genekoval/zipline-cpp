@@ -6,14 +6,6 @@ namespace zipline {
         Protocol::socket_type socket;
     protected:
         Protocol proto;
-
-        template <typename ...Args>
-        auto write(EventT event, Args&&... args) -> void {
-            proto.write(event);
-            ((
-                proto.write(args)
-            ), ...);
-        }
     public:
         client(Protocol::socket_type&& socket) :
             socket(std::move(socket)),
@@ -26,10 +18,24 @@ namespace zipline {
             proto.wait_for_ack();
         }
 
+        template <typename R>
+        auto response() -> R {
+            return proto.template response<R>();
+        }
+
         template <typename R, typename ...Args>
         auto send(EventT event, Args&&... args) -> R {
             write(event, args...);
             return proto.template response<R>();
+        }
+
+        template <typename ...Args>
+        auto write(Args&&... args) -> void {
+            ((proto.write(args)), ...);
+        }
+
+        auto write_bytes(std::span<const std::byte> bytes) -> void {
+            proto.write_bytes(bytes);
         }
     };
 }
