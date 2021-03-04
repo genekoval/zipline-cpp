@@ -25,6 +25,8 @@ namespace zipline {
 
         template <typename Callable>
         auto read(Callable pipe) -> void {
+            prepare();
+
             DEBUG()
                 << *sock << " reading data stream: " << stream_size << " bytes";
 
