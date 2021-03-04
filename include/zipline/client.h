@@ -1,5 +1,7 @@
 #pragma once
 
+#include <span>
+
 namespace zipline {
     template <typename Protocol, typename EventT>
     class client {
