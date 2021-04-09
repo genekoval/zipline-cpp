@@ -1,4 +1,6 @@
 #include <zipline/buffer.h>
 #include <zipline/client.h>
 #include <zipline/data_stream.h>
+#include <zipline/macros.h>
+#include <zipline/server_protocol.h>
 #include <zipline/router.h>

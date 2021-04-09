@@ -40,12 +40,12 @@ namespace zipline {
             return transfer<Socket, U>::read(*sock);
         }
 
-        auto reply() -> void {
+        auto reply() const -> void {
             write_success();
         }
 
         template <typename T>
-        auto reply(T&& t) -> void {
+        auto reply(T&& t) const -> void {
             write_success();
             write(t);
         }
