@@ -55,7 +55,7 @@ namespace zipline {
                 if (this->empty()) fill_buffer();
 
                 const auto available = this->size();
-                const auto& bytes = std::min(remaining, available);
+                const auto bytes = std::min(remaining, available);
 
                 std::memcpy(dest, this->front(), bytes);
                 this->head += bytes;
@@ -75,7 +75,7 @@ namespace zipline {
             if (this->empty()) fill_buffer();
 
             const auto available = this->size();
-            const auto& bytes = std::min(len, available);
+            const auto bytes = std::min(len, available);
 
             const auto result = std::span(this->front(), bytes);
             this->head += bytes;
