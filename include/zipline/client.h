@@ -1,38 +1,54 @@
 #pragma once
 
+#include <zipline/protocol.h>
+
 #include <span>
 
 namespace zipline {
-    template <typename Protocol, typename EventT>
+    template <typename Socket, typename EventT, typename ErrorList>
     class client {
-        Protocol::socket_type socket;
+        using protocol_type = protocol<Socket, ErrorList>;
+
+        template <typename T>
+        using response_type = response<T, Socket, ErrorList>;
+
+        Socket socket;
     protected:
-        Protocol proto;
+        protocol_type proto;
     public:
-        client(Protocol::socket_type&& socket) :
+        client(const ErrorList& errors, Socket&& socket) :
             socket(std::move(socket)),
-            proto(this->socket)
+            proto(this->socket, errors)
         {}
 
-        template <typename ...Args>
-        auto emit(EventT event, Args&&... args) -> void {
-            write(event, args...);
-            proto.wait_for_ack();
+        template <typename T>
+        auto read() const -> std::remove_reference_t<T> {
+            return proto.template read<T>();
         }
 
-        template <typename R>
-        auto response() -> R {
-            return proto.template response<R>();
+        template <typename T>
+        auto read(const response_type<T>& res) const -> T {
+            return res.read(*(proto.errors));
+        }
+
+        template <typename T>
+        auto response() const -> T {
+            return proto.template response<T>();
         }
 
         template <typename R, typename ...Args>
-        auto send(EventT event, Args&&... args) -> R {
-            write(event, args...);
-            return proto.template response<R>();
+        auto send(EventT event, const Args&... args) -> R {
+            start(event, args...);
+            return response<R>();
         }
 
         template <typename ...Args>
-        auto write(Args&&... args) -> void {
+        auto start(EventT event, const Args&... args) const -> void {
+            write(event, args...);
+        }
+
+        template <typename ...Args>
+        auto write(const Args&... args) const -> void {
             ((proto.write(args)), ...);
         }
 

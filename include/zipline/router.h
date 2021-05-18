@@ -1,64 +1,64 @@
 #pragma once
 
-#include <zipline/protocol.h>
+#include <zipline/server_protocol.h>
 
 #include <array>
 #include <timber/timber>
 
 namespace zipline {
-    template <typename Protocol, typename EventT, std::size_t N>
+    template <
+        typename Socket,
+        typename EventT,
+        typename ErrorList,
+        typename Context,
+        typename ...Routes
+    >
     class router {
-        using handler = void (*)(Protocol&);
+        using protocol_type = server_protocol<Context, Socket, ErrorList>;
+        using route_type = void (*)(
+            const std::tuple<Routes...>&,
+            protocol_type&
+        );
 
-        const std::array<handler, N> endpoints;
+        Context* ctx;
+        const ErrorList errors;
+        std::array<route_type, sizeof...(Routes)> routes;
+        std::tuple<Routes...> route_source;
 
-        auto get(EventT event) const -> handler {
-            try {
-                return endpoints.at(event);
-            }
-            catch (const std::out_of_range&) {
-                return nullptr;
-            }
+        template <std::size_t ...I>
+        auto initialize(std::index_sequence<I...>) -> void {
+            ((routes[I] = [](
+                const std::tuple<Routes...>& source,
+                protocol_type& proto
+            ) -> void {
+                proto.use(std::get<I>(source));
+            }), ...);
         }
     public:
-        template <typename ...Events>
-        router(Events&&... events) : endpoints { events... } {}
+        router(Context& ctx, Routes... r) :
+            ctx(&ctx),
+            route_source(r...)
+        {
+            initialize(std::index_sequence_for<Routes...>());
+            DEBUG()
+                << "Created router with ("
+                << this->routes.size()
+                << ") routes";
+        }
 
-        auto route(Protocol&& proto) const -> void {
-            auto event = proto.template read<EventT>();
+        auto route(Socket& sock) const -> void {
+            auto proto = protocol_type(*ctx, sock, errors);
+            const auto event = proto.template read<EventT>();
 
-            DEBUG() << "Event received: " << event;
-
-            auto endpoint = get(event);
-            if (!endpoint) {
-                ERROR() << "Event (" << event << ") does not exist";
-                proto.write_error("no such event");
-                return;
-            }
+            DEBUG() << "event received: " << event;
 
             try {
-                endpoint(proto);
+                routes.at(event)(route_source, proto);
+                DEBUG() << "event handled: " << event;
             }
-            catch (const std::exception& ex) {
-                ERROR() << ex.what();
-                proto.write_error(ex.what());
+            catch (const std::out_of_range&) {
+                ERROR() << "unknown event received: " << event;
             }
         }
     };
-
-    template <
-        typename Protocol,
-        typename EventT,
-        typename ...Events,
-        typename Router = router<Protocol, EventT, sizeof...(Events)>
-    >
-    auto make_router(
-        Events&&... events
-    ) -> Router {
-        DEBUG()
-            << "Generating event router with ("
-            << sizeof...(Events)
-            << ") events";
-        return Router(events...);
-    }
 }

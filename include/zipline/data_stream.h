@@ -14,9 +14,11 @@ namespace zipline {
         using size_type = std::size_t;
 
         std::span<const std::byte> chunk;
-        Socket* sock;
+        Socket* sock = nullptr;
         std::optional<size_type> stream_size;
     public:
+        data_stream() = default;
+
         data_stream(Socket& sock) : sock(&sock) {}
 
         template <typename Callable>
