@@ -105,7 +105,7 @@ namespace zipline {
         static auto read(Socket& sock) -> std::string {
             const auto string = read_array<Socket, std::string>(sock, '\0');
 
-            if (timber::reporting_level() >= timber::level::debug) {
+            if (timber::reporting_level >= timber::level::debug) {
                 const auto subsize = std::min(string.size(), 25UL);
                 const auto substr = string.substr(0, subsize);
 
