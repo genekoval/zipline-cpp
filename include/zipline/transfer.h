@@ -96,7 +96,16 @@ namespace zipline {
             Socket& sock,
             const std::span<const T> span
         ) -> void {
-            write_array<Socket, std::span<const T>>(sock, span);
+            using size_type = typename std::span<const T>::size_type;
+
+            const auto size = span.size();
+            transfer<Socket, size_type>::write(sock, size);
+            DEBUG() << "write span size: " << size;
+
+            for (size_type i = 0; i < size; ++i) {
+                DEBUG() << "write span [" << i << "]";
+                transfer<Socket, T>::write(sock, span[i]);
+            }
         }
     };
 
