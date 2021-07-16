@@ -1,3 +1,4 @@
+#include "data_stream.h"
 #include "optional.h"
 #include "pair.h"
 #include "span.h"
