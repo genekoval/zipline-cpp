@@ -1,7 +1,7 @@
 #pragma once
 
 #include <zipline/error.h>
-#include <zipline/transfer.h>
+#include <zipline/transfer/transfer.h>
 
 #include <typeindex>
 #include <typeinfo>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <zipline/transfer.h>
+#include "base.h"
 
 #include <algorithm>
 #include <array>
@@ -11,41 +11,39 @@
 namespace zipline {
     template <typename Socket>
     class data_stream {
-        using size_type = std::size_t;
-
         std::span<const std::byte> chunk;
-        Socket* sock = nullptr;
-        std::optional<size_type> stream_size;
+        Socket* socket = nullptr;
+        std::optional<std::size_t> stream_size;
     public:
         data_stream() = default;
 
-        data_stream(Socket& sock) : sock(&sock) {}
+        data_stream(Socket& socket) : socket(&socket) {}
 
         template <typename Callable>
         auto read(Callable pipe) -> void {
             auto remaining = size();
 
-            DEBUG()
-                << *sock << " reading data stream: " << remaining << " bytes";
+            TRACE()
+                << *socket << " reading data stream: " << remaining << " bytes";
 
             pipe(peek());
             remaining -= chunk.size();
 
             while (remaining > 0) {
-                chunk = sock->read(remaining);
+                chunk = socket->read(remaining);
                 remaining -= chunk.size();
                 pipe(chunk);
             }
         }
 
         auto peek() -> std::span<const std::byte> {
-            if (!chunk.data()) chunk = sock->read(size());
+            if (!chunk.data()) chunk = socket->read(size());
             return chunk;
         }
 
-        auto size() -> size_type {
+        auto size() -> std::size_t {
             if (!stream_size) {
-                stream_size = transfer<Socket, size_type>::read(*sock);
+                stream_size = read_size(*socket);
             }
 
             return *stream_size;
@@ -54,10 +52,13 @@ namespace zipline {
 
     template <typename Socket>
     struct transfer<Socket, data_stream<Socket>> {
-        using T = data_stream<Socket>;
+        static auto read(Socket& socket) -> data_stream<Socket> {
+            return data_stream<Socket>(socket);
+        }
 
-        static auto read(Socket& sock) -> T {
-            return T(sock);
+        static auto write(Socket& socket) -> void {
+            ERROR() << "data_stream does not support writing";
+            throw unsupported_transfer_type();
         }
     };
 }

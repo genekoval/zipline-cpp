@@ -2,6 +2,7 @@
 
 #include <zipline/protocol.h>
 
+#include <functional>
 #include <tuple>
 
 namespace zipline {

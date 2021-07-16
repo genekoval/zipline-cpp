@@ -2,7 +2,7 @@
 
 #include <zipline/error.h>
 #include <zipline/error_list.h>
-#include <zipline/transfer.h>
+#include <zipline/transfer/transfer.h>
 
 namespace zipline {
     template <

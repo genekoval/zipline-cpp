@@ -1,6 +1,6 @@
 #pragma once
 
-#include <zipline/transfer.h>
+#include <zipline/transfer/transfer.h>
 
 #include <stdexcept>
 

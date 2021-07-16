@@ -4,7 +4,6 @@ STD := c++20
 
 define test.libs
  gtest
- gtest_main
  gmock
  pthread
  timber
