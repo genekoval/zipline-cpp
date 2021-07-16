@@ -1,3 +1,5 @@
+#include "socket.test.h"
+
 #include <zipline/zipline>
 
 #include <cstring>
@@ -5,35 +7,10 @@
 
 using namespace std::literals;
 
-class TestSocket {
-    std::array<std::byte, 1024> buffer;
-    std::size_t head = 0;
-    std::size_t tail = 0;
-public:
-    auto flush() -> void {}
-
-    auto read(void* dest, std::size_t len) -> std::size_t {
-        std::memcpy(dest, &buffer[head], len);
-        head += len;
-
-        if (head == tail) {
-            head = 0;
-            tail = 0;
-        }
-
-        return len;
-    }
-
-    auto write(const void* src, std::size_t len) -> std::size_t {
-        std::memcpy(&buffer[tail], src, len);
-        tail += len;
-
-        return len;
-    }
-};
+using socket = zipline::test::socket;
 
 template <typename Derived>
-using zipline_error = zipline::zipline_error<TestSocket, Derived>;
+using zipline_error = zipline::zipline_error<socket, Derived>;
 
 class custom_error : public zipline_error<custom_error> {
     int n;
@@ -50,17 +27,17 @@ public:
 
 namespace zipline {
     template <>
-    struct transfer<TestSocket, custom_error> {
-        static auto read(TestSocket& sock) -> custom_error {
-            const auto n = transfer<TestSocket, int>::read(sock);
-            const auto message = transfer<TestSocket, std::string>::read(sock);
+    struct transfer<socket, custom_error> {
+        static auto read(socket& sock) -> custom_error {
+            const auto n = transfer<socket, int>::read(sock);
+            const auto message = transfer<socket, std::string>::read(sock);
 
             return custom_error(n, message);
         }
 
-        static auto write(TestSocket& sock, const custom_error& error) -> void {
-            transfer<TestSocket, int>::write(sock, error.number());
-            transfer<TestSocket, std::string>::write(sock, error.what());
+        static auto write(socket& sock, const custom_error& error) -> void {
+            transfer<socket, int>::write(sock, error.number());
+            transfer<socket, std::string>::write(sock, error.what());
         }
     };
 }
@@ -96,24 +73,25 @@ struct TestContext {
     }
 };
 
-using error_list = zipline::error_list<TestSocket, custom_error>;
+using error_list = zipline::error_list<socket, custom_error>;
 
 using protocol = zipline::server_protocol<
     TestContext,
-    TestSocket,
+    socket,
     error_list
 >;
 
-TEST(ServerProtocol, UseWithReturn) {
+class ServerProtocolTest : public SocketTestBase {};
+
+TEST_F(ServerProtocolTest, UseWithReturn) {
     const auto numbers = std::vector<int> { 1, 2, 3 };
     const auto expected = std::vector<int> { 2, 4, 6 };
 
     const auto errors = error_list();
 
     auto context = TestContext();
-    auto socket = TestSocket();
 
-    auto proto = protocol(context, socket, errors);
+    auto proto = protocol(context, sock, errors);
 
     for (const auto n : numbers) proto.write(n);
 
@@ -123,7 +101,7 @@ TEST(ServerProtocol, UseWithReturn) {
     ASSERT_EQ(expected, result);
 }
 
-TEST(ServerProtocol, UseWithVoid) {
+TEST_F(ServerProtocolTest, UseWithVoid) {
     const auto one = "foo"s;
     const auto two = 500;
     constexpr auto expected = "foo500";
@@ -131,9 +109,8 @@ TEST(ServerProtocol, UseWithVoid) {
     const auto errors = error_list();
 
     auto context = TestContext();
-    auto socket = TestSocket();
 
-    auto proto = protocol(context, socket, errors);
+    auto proto = protocol(context, sock, errors);
 
     proto.write(one);
     proto.write(two);
@@ -144,13 +121,12 @@ TEST(ServerProtocol, UseWithVoid) {
     ASSERT_EQ(expected, context.result);
 }
 
-TEST(ServerProtocol, UseWithThrow) {
+TEST_F(ServerProtocolTest, UseWithThrow) {
     auto context = TestContext();
-    auto socket = TestSocket();
 
     const auto errors = error_list();
 
-    auto proto = protocol(context, socket, errors);
+    auto proto = protocol(context, sock, errors);
 
     try {
         proto.use(&TestContext::throw_error);
@@ -163,13 +139,12 @@ TEST(ServerProtocol, UseWithThrow) {
     }
 }
 
-TEST(ServerProtocol, UseWithCustomThrow) {
+TEST_F(ServerProtocolTest, UseWithCustomThrow) {
     auto context = TestContext();
-    auto socket = TestSocket();
 
     const auto errors = error_list();
 
-    auto proto = protocol(context, socket, errors);
+    auto proto = protocol(context, sock, errors);
 
     try {
         proto.use(&TestContext::throw_custom_error);

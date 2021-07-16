@@ -1,68 +1,49 @@
+#include "socket.test.h"
+
 #include <zipline/zipline>
 
 #include <cstring>
 #include <gtest/gtest.h>
 
-class test_socket {
-    std::array<std::byte, 1024> buffer;
-    std::size_t head = 0;
-    std::size_t tail = 0;
-public:
-    auto flush() -> void {}
+using socket = zipline::test::socket;
 
-    auto read(void* dest, std::size_t len) -> std::size_t {
-        std::memcpy(dest, &buffer[head], len);
-        head += len;
+namespace {
+    struct context {
+        std::string storage;
 
-        if (head == tail) {
-            head = 0;
-            tail = 0;
+        auto greet(std::string name) -> std::string {
+            return "Hello, " + name + "!";
         }
 
-        return len;
-    }
+        auto save(std::string value) -> void {
+            storage = value;
+        }
 
-    auto write(const void* src, std::size_t len) -> std::size_t {
-        std::memcpy(&buffer[tail], src, len);
-        tail += len;
+        auto set_default() -> void {
+            storage = "default";
+        }
+    };
 
-        return len;
-    }
-};
+    using event_type = std::uint16_t;
 
-struct context {
-    std::string storage;
+    template <typename ...Errors>
+    using error_list = zipline::error_list<socket, Errors...>;
 
-    auto greet(std::string name) -> std::string {
-        return "Hello, " + name + "!";
-    }
+    using errors = error_list<>;
 
-    auto save(std::string value) -> void {
-        storage = value;
-    }
+    template <typename ...Routes>
+    using router = zipline::router<
+        socket,
+        event_type,
+        errors,
+        context,
+        Routes...
+    >;
+}
 
-    auto set_default() -> void {
-        storage = "default";
-    }
-};
+class RouterTest : public SocketTestBase {};
 
-using event_type = std::uint16_t;
-
-template <typename ...Errors>
-using error_list = zipline::error_list<test_socket, Errors...>;
-
-using errors = error_list<>;
-
-template <typename ...Routes>
-using router = zipline::router<
-    test_socket,
-    event_type,
-    errors,
-    context,
-    Routes...
->;
-
-TEST(RouterTest, MemberRoute) {
+TEST_F(RouterTest, MemberRoute) {
     const auto e = errors();
     auto ctx = context();
     const auto rt = router(
@@ -72,8 +53,7 @@ TEST(RouterTest, MemberRoute) {
         &context::set_default
     );
 
-    auto sock = test_socket();
-    auto proto = zipline::protocol<test_socket, errors>(sock, e);
+    auto proto = zipline::protocol<socket, errors>(sock, e);
 
     proto.write<event_type>(0);
     proto.write<std::string>("world");
