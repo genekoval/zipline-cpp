@@ -23,7 +23,7 @@ namespace zipline {
             T& t,
             Type T::* member
         ) -> void {
-            std::invoke(member, t) = transfer<Socket, Type>::read(socket);
+            t.*member = transfer<Socket, Type>::read(socket);
         }
 
         template <typename Type>
@@ -32,7 +32,7 @@ namespace zipline {
             const T& t,
             Type T::* member
         ) -> void {
-            transfer<Socket, Type>::write(socket, std::invoke(member, t));
+            transfer<Socket, Type>::write(socket, t.*member);
         }
     public:
         template <typename ...Members>
