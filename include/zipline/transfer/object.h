@@ -2,8 +2,7 @@
 
 #include "base.h"
 
-#define ZIPLINE_OBJECT(Type, ...) \
-    template <typename Socket> \
+#define ZIPLINE_OBJECT_TEMPLATE(Type, ...) \
     struct transfer<Socket, Type> { \
         using Object = zipline::object<Socket, Type>; \
         static auto read(Socket& socket) -> Type { \
@@ -13,6 +12,11 @@
             Object::write(socket, t, __VA_ARGS__); \
         } \
     };
+
+
+#define ZIPLINE_OBJECT(Type, ...) \
+    template <typename Socket> \
+    ZIPLINE_OBJECT_TEMPLATE(Type, __VA_ARGS__)
 
 namespace zipline {
     template <typename Socket, typename T>
