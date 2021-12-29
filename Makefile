@@ -2,12 +2,9 @@ project := zipline
 
 STD := c++20
 
-define test.libs
- gtest
- gmock
- pthread
- timber
-endef
+test.libs = gtest gmock pthread timber
+
+files = $(include) $(src) Makefile VERSION
 
 include mkbuild/base.mk
 
