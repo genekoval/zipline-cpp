@@ -1,4 +1,4 @@
-project := zipline
+project := zipline-cpp
 
 STD := c++20
 
