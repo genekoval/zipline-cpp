@@ -21,20 +21,20 @@
 namespace zipline {
     template <typename Socket, typename T>
     class object {
-        template <typename Type>
+        template <typename Type, typename Base>
         static auto read_member(
             Socket& socket,
             T& t,
-            Type T::* member
+            Type Base::* member
         ) -> void {
             t.*member = transfer<Socket, Type>::read(socket);
         }
 
-        template <typename Type>
+        template <typename Type, typename Base>
         static auto write_member(
             Socket& socket,
             const T& t,
-            Type T::* member
+            Type Base::* member
         ) -> void {
             transfer<Socket, Type>::write(socket, t.*member);
         }
