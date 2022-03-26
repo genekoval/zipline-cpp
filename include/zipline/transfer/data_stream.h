@@ -22,8 +22,7 @@ namespace zipline {
         auto read(Callable pipe) -> void {
             auto remaining = size();
 
-            TRACE()
-                << *socket << " reading data stream: " << remaining << " bytes";
+            TIMBER_TRACE("reading data stream: {} bytes", remaining);
 
             pipe(peek());
             remaining -= chunk.size();
@@ -56,7 +55,7 @@ namespace zipline {
         }
 
         static auto write(Socket& socket) -> void {
-            ERROR() << "data_stream does not support writing";
+            TIMBER_ERROR("data_stream does not support writing");
             throw unsupported_transfer_type();
         }
     };

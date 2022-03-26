@@ -127,10 +127,11 @@ namespace zipline {
                 flush();
             }
             catch (const std::exception& ex) {
-                ERROR()
-                    << "Write operation failed with "
-                    << this->size() << " bytes unsent: "
-                    << ex.what();
+                TIMBER_ERROR(
+                    "Write operation failed with {} bytes unset: {}",
+                    this->size(),
+                    ex.what()
+                );
             }
         }
 

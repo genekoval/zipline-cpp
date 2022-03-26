@@ -2,7 +2,7 @@ project := zipline-cpp
 
 STD := c++20
 
-test.libs = gtest gmock pthread timber
+test.libs = fmt gtest gmock pthread timber
 
 files = $(include) $(src) Makefile VERSION
 

@@ -40,24 +40,25 @@ namespace zipline {
             route_source(r...)
         {
             initialize(std::index_sequence_for<Routes...>());
-            DEBUG()
-                << "Created router with ("
-                << this->routes.size()
-                << ") routes";
+
+            TIMBER_DEBUG(
+                "Created router with ({}) routes",
+                this->routes.size()
+            );
         }
 
         auto route(Socket& sock) const -> void {
             auto proto = protocol_type(*ctx, sock, errors);
             const auto event = proto.template read<EventT>();
 
-            DEBUG() << "event received: " << event;
+            TIMBER_DEBUG("event received: {}", event);
 
             try {
                 routes.at(event)(route_source, proto);
-                DEBUG() << "event handled: " << event;
+                TIMBER_DEBUG("event handled: {}", event);
             }
             catch (const std::out_of_range&) {
-                ERROR() << "unknown event received: " << event;
+                TIMBER_ERROR("unknown event received: {}", event);
             }
         }
     };

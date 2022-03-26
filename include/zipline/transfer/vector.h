@@ -8,7 +8,7 @@ namespace zipline {
     template <typename Socket, typename T>
     struct transfer<Socket, std::vector<T>> {
         static auto read(Socket& socket) -> std::vector<T> {
-            TRACE() << "read vector";
+            TIMBER_TRACE("read vector");
             return read_sequence<Socket, std::vector<T>>(socket);
         }
 
@@ -16,7 +16,7 @@ namespace zipline {
             Socket& socket,
             const std::vector<T>& vector
         ) -> void {
-            TRACE() << "write vector";
+            TIMBER_TRACE("write vector");
             write_sequence(socket, vector);
         }
     };

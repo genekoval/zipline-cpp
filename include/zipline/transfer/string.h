@@ -9,15 +9,11 @@ namespace zipline {
         const auto subsize = std::min(string.size(), 64ul);
         const auto substr = string.substr(0, subsize);
 
-        TRACE()
-            << "string: "
-            << substr
-            << (
-                subsize < string.size() ?
-                    " ...(" +
-                    std::to_string(string.size() - subsize) +
-                    " more)..." : ""
-            );
+        TIMBER_TRACE("string: {}{}",
+            substr,
+            subsize < string.size() ?
+                fmt::format("...({} more)...", string.size() - subsize) : ""
+        );
     }
 
     template <typename Socket>
@@ -26,7 +22,7 @@ namespace zipline {
             const auto string = read_array<Socket, std::string>(socket, '\0');
 
             if (timber::reporting_level >= timber::level::trace) {
-                TRACE() << "read string";
+                TIMBER_TRACE("read string");
                 log_string(string);
             }
 
@@ -37,7 +33,7 @@ namespace zipline {
             write_array(socket, string);
 
             if (timber::reporting_level >= timber::level::trace) {
-                TRACE() << "write string";
+                TIMBER_TRACE("write string");
                 log_string(string);
             }
         }
@@ -46,7 +42,7 @@ namespace zipline {
     template <typename Socket>
     struct transfer<Socket, std::string_view> {
         static auto read(Socket& socket) -> std::string_view {
-            ERROR() << "string_view does not support reading";
+            TIMBER_ERROR("string_view does not support reading");
             throw unsupported_transfer_type();
         }
 
@@ -57,7 +53,7 @@ namespace zipline {
             write_array(socket, string);
 
             if (timber::reporting_level >= timber::level::trace) {
-                TRACE() << "write string_view";
+                TIMBER_TRACE("write string_view");
                 log_string(string);
             }
         }

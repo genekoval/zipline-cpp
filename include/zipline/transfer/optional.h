@@ -11,10 +11,7 @@ namespace zipline {
         static auto read(Socket& socket) -> std::optional<T> {
             auto has_value = transfer<Socket, bool>::read(socket);
 
-            TRACE()
-                << std::boolalpha
-                << "read optional: contains value: "
-                << has_value;
+            TIMBER_TRACE("read optional: contains value: {}", has_value);
 
             if (has_value) return transfer<Socket, T>::read(socket);
             return {};
@@ -28,10 +25,10 @@ namespace zipline {
 
             transfer<Socket, bool>::write(socket, has_value);
 
-            TRACE()
-                << std::boolalpha
-                << "write optional: contains value :"
-                << optional.has_value();
+            TIMBER_TRACE(
+                "write optional: contains value: {}",
+                optional.has_value()
+            );
 
             if (has_value) transfer<Socket, T>::write(socket, optional.value());
         }

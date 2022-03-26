@@ -40,7 +40,7 @@ namespace zipline {
     >
     auto read_array(Socket& socket, const T& value = T()) -> Container {
         const auto size = read_size(socket);
-        TRACE() << "read array size: " << size;
+        TIMBER_TRACE("read array size: {}", size);
 
         auto container = Container(size, value);
         socket.read(container.data(), sizeof(T) * size);
@@ -56,7 +56,7 @@ namespace zipline {
     auto write_array(Socket& socket, const Container& container) -> void {
         const auto size = container.size();
         write_size(socket, size);
-        TRACE() << "write array size: " << size;
+        TIMBER_TRACE("write array size: {}", size);
 
         socket.write(container.data(), sizeof(T) * size);
     }
@@ -68,12 +68,12 @@ namespace zipline {
     >
     auto read_sequence(Socket& socket) -> Container {
         const auto size = read_size(socket);
-        TRACE() << "read sequence size: " << size;
+        TIMBER_TRACE("read sequence size: {}", size);
 
         auto container = Container();
 
         for (std::size_t i = 0; i < size; ++i) {
-            TRACE() << "read sequence item [" << i << "]";
+            TIMBER_TRACE("read sequence item [{}]", i);
             container.push_back(transfer<Socket, T>::read(socket));
         }
 
@@ -88,10 +88,10 @@ namespace zipline {
     auto write_sequence(Socket& socket, const Container& container) -> void {
         const auto size = container.size();
         write_size(socket, size);
-        TRACE() << "write sequence size: " << size;
+        TIMBER_TRACE("write sequence size: {}", size);
 
         for (std::size_t i = 0; i < size; ++i) {
-            TRACE() << "write sequence item [" << i << "]";
+            TIMBER_TRACE("write sequence item [{}]", i);
             transfer<Socket, T>::write(socket, container[i]);
         }
     }
