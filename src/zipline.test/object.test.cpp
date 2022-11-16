@@ -4,17 +4,17 @@
 
 #include <gtest/gtest.h>
 
-using socket = zipline::test::socket;
+namespace {
+    struct data {
+        std::string text;
+        int number;
+        bool b;
 
-struct data {
-    std::string text;
-    int number;
-    bool b;
+        auto operator==(const data&) const -> bool = default;
+    };
 
-    auto operator==(const data&) const -> bool = default;
-};
-
-using transfer = zipline::transfer<socket, data>;
+    using coder = zipline::coder<zipline::memory_buffer, data>;
+}
 
 namespace zipline {
     ZIPLINE_OBJECT(
@@ -28,14 +28,16 @@ namespace zipline {
 class ObjectTest : public SocketTestBase {};
 
 TEST_F(ObjectTest, ReadWrite) {
-    const auto original = data {
-        .text = "Object Test",
-        .number = 42,
-        .b = true
-    };
+    [this]() -> ext::detached_task {
+        const auto original = data {
+            .text = "Object Test",
+            .number = 42,
+            .b = true
+        };
 
-    transfer::write(sock, original);
-    auto copy = transfer::read(sock);
+        co_await coder::encode(socket, original);
+        auto copy = co_await coder::decode(socket);
 
-    ASSERT_EQ(original, copy);
+        EXPECT_EQ(original, copy);
+    }();
 }

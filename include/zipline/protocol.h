@@ -18,30 +18,32 @@ namespace zipline {
     public:
         const ErrorList* errors;
 
+        protocol() : sock(nullptr), errors(nullptr) {}
+
         protocol(Socket& sock, const ErrorList& errors) :
             sock(&sock),
             errors(&errors)
         {}
 
         template <typename T>
-        auto read() const -> std::remove_reference_t<T> {
-            return transfer<Socket, std::remove_reference_t<T>>::read(*sock);
+        auto read() const -> ext::task<T> {
+            co_return co_await coder<Socket, T>::decode(*sock);
         }
 
         template <typename T>
-        auto response() const -> T {
-            sock->flush();
+        auto response() const -> ext::task<T> {
+            co_await sock->flush();
             auto res = response_type<T>(*sock);
-            return res.read(*errors);
+            co_return co_await res.read(*errors);
         }
 
         template <typename T>
-        auto write(const T& t) const -> void {
-            transfer<Socket, T>::write(*sock, t);
+        auto write(const T& t) const -> ext::task<> {
+            co_await coder<Socket, T>::encode(*sock, t);
         }
 
-        auto write_bytes(std::span<const std::byte> bytes) -> void {
-            sock->write(bytes.data(), bytes.size());
+        auto write_bytes(std::span<const std::byte> bytes) -> ext::task<> {
+            co_await sock->write(bytes.data(), bytes.size());
         }
     };
 }

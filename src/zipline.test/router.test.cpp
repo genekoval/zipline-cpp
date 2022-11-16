@@ -3,77 +3,96 @@
 #include <zipline/zipline>
 
 #include <cstring>
-#include <gtest/gtest.h>
+#include <fmt/format.h>
 
-using socket = zipline::test::socket;
+using namespace std::literals;
+
+using socket = zipline::memory_buffer;
 
 namespace {
     struct context {
-        std::string storage;
+        std::string& storage;
 
-        auto greet(std::string name) -> std::string {
-            return "Hello, " + name + "!";
+        explicit context(std::string& storage) : storage(storage) {}
+
+        auto greet(std::string name) -> ext::task<std::string> {
+            co_return fmt::format("Hello, {}!", name);
         }
 
-        auto save(std::string value) -> void {
+        auto save(std::string value) -> ext::task<> {
             storage = value;
+            co_return;
         }
 
-        auto set_default() -> void {
+        auto set_default() -> ext::task<> {
             storage = "default";
+            co_return;
         }
     };
 
     using event_type = std::uint16_t;
 
-    template <typename ...Errors>
-    using error_list = zipline::error_list<socket, Errors...>;
+    enum class events : event_type {
+        greet,
+        save,
+        set_default
+    };
 
-    using errors = error_list<>;
+    using error_list = zipline::error_list<socket>;
 
-    template <typename ...Routes>
     using router = zipline::router<
         socket,
         event_type,
-        errors,
+        error_list,
         context,
-        Routes...
+        decltype(&context::greet),
+        decltype(&context::save),
+        decltype(&context::set_default)
     >;
+
+    auto make_router(std::string& storage) -> router {
+        return router(
+            context(storage),
+            &context::greet,
+            &context::save,
+            &context::set_default
+        );
+    }
 }
 
-class RouterTest : public SocketTestBase {};
+class RouterTest : public SocketTestBase {
+protected:
+    const error_list errors;
+
+    std::string storage;
+
+    zipline::client<zipline::memory_buffer, events, error_list> client =
+        {errors, socket};
+
+    router routes = make_router(storage);
+
+    auto route() -> ext::task<> {
+        return routes.route_one(socket);
+    }
+};
 
 TEST_F(RouterTest, MemberRoute) {
-    const auto e = errors();
-    auto ctx = context();
-    const auto rt = router(
-        ctx,
-        &context::greet,
-        &context::save,
-        &context::set_default
-    );
+    [this]() -> ext::detached_task {
+        constexpr auto world = "world"sv;
+        co_await client.start(events::greet, world);
+        co_await route();
+        const auto response = co_await client.response<std::string>();
+        EXPECT_EQ("Hello, world!", response);
 
-    auto proto = zipline::protocol<socket, errors>(sock, e);
+        constexpr auto value = "my value"sv;
+        co_await client.start(events::save, value);
+        co_await route();
+        co_await client.response<>();
+        EXPECT_EQ(value, storage);
 
-    proto.write<event_type>(0);
-    proto.write<std::string>("world");
-
-    rt.route(sock);
-
-    ASSERT_EQ("Hello, world!", proto.response<std::string>());
-
-    proto.write<event_type>(1);
-    proto.write<std::string>("my value");
-
-    rt.route(sock);
-    proto.response<void>();
-
-    ASSERT_EQ("my value", ctx.storage);
-
-    proto.write<event_type>(2);
-
-    rt.route(sock);
-    proto.response<void>();
-
-    ASSERT_EQ("default", ctx.storage);
+        co_await client.start(events::set_default);
+        co_await route();
+        co_await client.response<>();
+        EXPECT_EQ("default"sv, storage);
+    }();
 }

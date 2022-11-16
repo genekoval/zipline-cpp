@@ -2,7 +2,7 @@
 
 #include <zipline/error.h>
 #include <zipline/error_list.h>
-#include <zipline/transfer/transfer.h>
+#include <zipline/coder/coder.h>
 
 namespace zipline {
     template <
@@ -10,79 +10,131 @@ namespace zipline {
         typename Socket,
         typename ErrorList
     >
-    class response {
-        using error = zipline_error_base<Socket>;
+    class response_base {
+    protected:
+        Socket* socket;
 
-        Socket* sock;
+        auto handle_error(
+            std::exception_ptr ex,
+            const ErrorList& errors
+        ) const -> ext::task<> {
+            auto code = status_type(0);
+            auto task = ext::task<>();
+            auto message = std::string_view();
 
-        template <typename U>
-        auto r() const -> U {
-            return transfer<Socket, U>::read(*sock);
+            try {
+                if (ex) std::rethrow_exception(ex);
+            }
+            catch (const zipline_error_base<Socket>& error) {
+                code = errors.code(error) + 2;
+                task = error.write(*socket);
+            }
+            catch (const std::exception& ex) {
+                code = 1;
+                message = ex.what();
+                task =
+                    coder<Socket, std::string_view>::encode(*socket, message);
+            }
+
+            co_await coder<Socket, status_type>::encode(*socket, code);
+            co_await task;
         }
 
         template <typename U>
-        auto w(const U& t) const -> void {
-            transfer<Socket, U>::write(*sock, t);
-        }
-
-        auto write_error(const std::exception& ex) const -> void {
-            w<status_type>(1);
-            w<std::string>(ex.what());
-        }
-
-        auto write_success() const -> void {
-            w<status_type>(0);
+        auto decode() const -> ext::task<U> {
+            co_return co_await coder<Socket, U>::decode(*socket);
         }
     public:
-        response(Socket& sock) : sock(&sock) {}
+        response_base(Socket& socket) : socket(&socket) {}
 
-        auto read(const ErrorList& errors) const -> T {
-            const auto status = r<status_type>();
+        auto read(const ErrorList& errors) const -> ext::task<T> {
+            const auto status = co_await decode<status_type>();
 
             switch (status) {
                 case 0:
-                    if constexpr (!std::is_void_v<T>) return r<T>();
-                    break;
-                case 1:
-                    throw std::runtime_error(r<std::string>());
+                    if constexpr (std::is_void_v<T>) co_return;
+                    else co_return co_await decode<T>();
+                case 1: {
+                    const auto message = co_await decode<std::string>();
+                    throw std::runtime_error(message);
+                }
                 default:
-                    errors.throw_error(*sock, status - 2);
+                    co_await errors.throw_error(*socket, status - 2);
             }
+
+            __builtin_unreachable();
         }
+    };
+
+    template <typename T, typename Socket, typename ErrorList>
+    struct response : response_base<T, Socket, ErrorList> {
+        using response_base<T, Socket, ErrorList>::response_base;
 
         template <typename Callable, typename Arguments>
         auto write(
             const ErrorList& errors,
             Callable&& callable,
             Arguments&& args
-        ) const -> void {
+        ) const -> ext::task<> {
+            auto result = T();
+            auto task = ext::task<>();
+
             try {
-                if constexpr (std::is_void_v<T>) {
-                    std::apply(callable, args);
-                    write_success();
-                } else {
-                    const auto result = std::apply(callable, args);
-                    write_success();
-                    w<T>(result);
-                }
+                result = co_await std::apply(callable, args);
+                task = [](auto& socket, auto& result) -> ext::task<> {
+                    co_await coder<Socket, status_type>::encode(socket, 0);
+                    co_await coder<Socket, T>::encode(socket, result);
+                }(*this->socket, result);
             }
-            catch (const error& ex) {
-                const auto code = errors.code(ex);
-                w<status_type>(code + 2);
-                ex.write(*sock);
+            catch (...) {
+                task = this->handle_error(std::current_exception(), errors);
             }
-            catch (const std::exception& ex) {
-                write_error(ex);
+
+            co_await task;
+            co_await this->socket->flush();
+        }
+    };
+
+    template <typename Socket, typename ErrorList>
+    struct response<void, Socket, ErrorList> :
+        response_base<void, Socket, ErrorList>
+    {
+        using response_base<void, Socket, ErrorList>::response_base;
+
+        template <typename Callable, typename Arguments>
+        auto write(
+            const ErrorList& errors,
+            Callable&& callable,
+            Arguments&& args
+        ) const -> ext::task<> {
+            // TODO If integral encoding is specialized to take a copy instead
+            // of reference, this constant could be removed.
+            constexpr status_type success = 0;
+
+            auto task = ext::task<>();
+
+            try {
+                co_await std::apply(callable, args);
+                task = coder<Socket, status_type>::encode(
+                    *this->socket,
+                    success
+                );
             }
+            catch (...) {
+                task = this->handle_error(std::current_exception(), errors);
+            }
+
+            co_await task;
+            co_await this->socket->flush();
         }
     };
 
     template <typename T, typename Socket, typename ErrorList>
-    struct transfer<Socket, response<T, Socket, ErrorList>> {
+    struct coder<Socket, response<T, Socket, ErrorList>> {
         using type = response<T, Socket, ErrorList>;
 
-        static auto read(Socket& sock) -> type {
-            return type(sock);
+        static auto decode(Socket& sock) -> ext::task<type> {
+            co_return type(sock);
         }
     };
 }

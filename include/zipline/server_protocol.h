@@ -19,17 +19,22 @@ namespace zipline {
         auto read_arg_sequence(
             Args& tuple,
             std::index_sequence<I...>
-        ) const -> void {
+        ) const -> ext::task<> {
             ((std::get<I>(tuple) =
-                this->template read<std::tuple_element_t<I, Args>>()), ...);
+                co_await this->template read<std::tuple_element_t<I, Args>>()),
+                ...
+            );
         }
 
         template <typename ...Args>
-        auto read_args() const -> std::tuple<context_ref, Args...> {
+        auto read_args() const -> ext::task<std::tuple<context_ref, Args...>> {
             auto args = std::tuple<Args...>();
-            read_arg_sequence(args, std::index_sequence_for<Args...>());
+            co_await read_arg_sequence(
+                args,
+                std::index_sequence_for<Args...>()
+            );
 
-            return std::tuple_cat(context, args);
+            co_return std::tuple_cat(context, args);
         }
     public:
         server_protocol(
@@ -42,9 +47,15 @@ namespace zipline {
         {}
 
         template <typename R, typename ...Args>
-        auto use(R (Context::* callable)(Args...)) const -> void {
+        auto use(
+            ext::task<R> (Context::* callable)(Args...)
+        ) const -> ext::task<> {
             auto res = response<R, Socket, ErrorList>(*(this->sock));
-            res.write(*(this->errors), callable, read_args<Args...>());
+            co_await res.write(
+                *(this->errors),
+                callable,
+                co_await read_args<Args...>()
+            );
         }
     };
 }

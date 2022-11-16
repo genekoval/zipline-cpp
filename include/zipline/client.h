@@ -11,49 +11,48 @@ namespace zipline {
 
         template <typename T>
         using response_type = response<T, Socket, ErrorList>;
-
-        Socket socket;
     protected:
         protocol_type proto;
     public:
-        client(const ErrorList& errors, Socket&& socket) :
-            socket(std::move(socket)),
-            proto(this->socket, errors)
+        client() = default;
+
+        client(const ErrorList& errors, Socket& socket) :
+            proto(socket, errors)
         {}
 
         template <typename T>
-        auto read() const -> std::remove_reference_t<T> {
-            return proto.template read<T>();
+        auto read() const -> ext::task<T> {
+            co_return co_await proto.template read<T>();
         }
 
         template <typename T>
-        auto read(const response_type<T>& res) const -> T {
-            return res.read(*(proto.errors));
+        auto read(const response_type<T>& res) const -> ext::task<T> {
+            co_return co_await res.read(*(proto.errors));
         }
 
-        template <typename T>
-        auto response() const -> T {
-            return proto.template response<T>();
+        template <typename T = void>
+        auto response() const -> ext::task<T> {
+            co_return co_await proto.template response<T>();
         }
 
         template <typename R, typename ...Args>
-        auto send(EventT event, const Args&... args) -> R {
-            start(event, args...);
-            return response<R>();
+        auto send(EventT event, const Args&... args) -> ext::task<R> {
+            co_await start(event, args...);
+            co_return co_await response<R>();
         }
 
         template <typename ...Args>
-        auto start(EventT event, const Args&... args) const -> void {
-            write(event, args...);
+        auto start(EventT event, const Args&... args) const -> ext::task<> {
+            co_await write(event, args...);
         }
 
         template <typename ...Args>
-        auto write(const Args&... args) const -> void {
-            ((proto.write(args)), ...);
+        auto write(const Args&... args) const -> ext::task<> {
+            (co_await proto.write(args), ...);
         }
 
-        auto write_bytes(std::span<const std::byte> bytes) -> void {
-            proto.write_bytes(bytes);
+        auto write_bytes(std::span<const std::byte> bytes) -> ext::task<> {
+            co_await proto.write_bytes(bytes);
         }
     };
 }

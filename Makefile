@@ -4,12 +4,18 @@ project := $(name)-cpp
 
 STD := c++20
 
-test.libs = fmt gtest gmock pthread timber
+library := lib$(name)
+$(library).type := shared
+$(library).libs := fmt timber
+
+install := $(library)
+targets := $(install)
+
+test.libs = $(name) ext++ fmt gtest gmock pthread timber
+test.deps = $(library)
 
 install.directories = $(include)/$(name)
 
 files = $(include) $(src) Makefile VERSION
 
 include mkbuild/base.mk
-
-$($(test).objects): CXXFLAGS += -DTESTDIR='"$(build)"'

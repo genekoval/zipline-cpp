@@ -2,22 +2,22 @@
 
 #include <zipline/zipline>
 
-#include <gtest/gtest.h>
-
-namespace zipline::test {
-    using clock = std::chrono::system_clock;
-    using time_point = clock::time_point;
-    using transfer = zipline::transfer<socket, time_point>;
+namespace {
+    namespace internal {
+        using clock = std::chrono::system_clock;
+        using time_point = clock::time_point;
+        using coder = zipline::coder<zipline::memory_buffer, time_point>;
+    }
 }
 
 class TimePointTest : public SocketTestBase {};
 
 TEST_F(TimePointTest, ReadWrite) {
-    const auto original = zipline::test::clock::now();
+    [this]() -> ext::detached_task {
+        const auto original = internal::clock::now();
+        co_await internal::coder::encode(socket, original);
 
-    zipline::test::transfer::write(sock, original);
-
-    const auto copy = zipline::test::transfer::read(sock);
-
-    ASSERT_EQ(original, copy);
+        const auto copy = co_await internal::coder::decode(socket);
+        EXPECT_EQ(original, copy);
+    }();
 }

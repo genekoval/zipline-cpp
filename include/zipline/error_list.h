@@ -1,7 +1,7 @@
 #pragma once
 
 #include <zipline/error.h>
-#include <zipline/transfer/transfer.h>
+#include <zipline/coder/coder.h>
 
 #include <typeindex>
 #include <typeinfo>
@@ -14,7 +14,7 @@ namespace zipline {
     template <typename Socket, typename ...Errors>
     class error_list {
         using error = std::variant<std::monostate, Errors...>;
-        using error_reader = error (*)(Socket&);
+        using error_reader = auto (*)(Socket&) -> ext::task<error>;
         using error_types = std::tuple<Errors...>;
 
         template <std::size_t N>
@@ -25,8 +25,8 @@ namespace zipline {
 
         template <std::size_t ...I>
         auto initialize(std::index_sequence<I...>) -> void {
-            ((errors[I] = [](Socket& sock) -> error {
-                return transfer<Socket, type<I>>::read(sock);
+            ((errors[I] = [](Socket& sock) -> ext::task<error> {
+                co_return co_await coder<Socket, type<I>>::decode(sock);
             }), ...);
 
             ((codes[std::type_index(typeid(type<I>))] = I), ...);
@@ -37,7 +37,7 @@ namespace zipline {
         }
 
         auto code(const zipline_error_base<Socket>& ex) const -> status_type {
-            auto result = codes.find(std::type_index(typeid(ex)));
+            const auto result = codes.find(std::type_index(typeid(ex)));
 
             if (result == codes.end()) throw std::runtime_error(
                 std::string("unregistered error type: ") +
@@ -47,20 +47,20 @@ namespace zipline {
             return result->second;
         }
 
-        [[noreturn]]
-        auto throw_error(Socket& sock, status_type index) const -> void {
+        auto throw_error(Socket& sock, status_type index) const -> ext::task<> {
             if (index >= errors.size()) {
-                throw std::runtime_error("unrecognized error code: " + index);
+                throw std::runtime_error(fmt::format(
+                    "unrecognized error code ({})",
+                    index
+                ));
             }
 
             std::visit(
                 [](auto&& ex) { throw std::move(ex); },
-                errors[index](sock)
+                co_await errors[index](sock)
             );
 
-            // This code is never reached.
-            // It is only here so that [[noreturn]] works.
-            throw 0;
+            __builtin_unreachable();
         }
 
         constexpr auto size() const -> std::size_t {

@@ -17,20 +17,24 @@ namespace zipline {
     }
 
     template <typename Socket>
-    struct transfer<Socket, std::string> {
-        static auto read(Socket& socket) -> std::string {
-            const auto string = read_array<Socket, std::string>(socket, '\0');
+    struct coder<Socket, std::string> {
+        static auto decode(Socket& socket) -> ext::task<std::string> {
+            const auto string =
+                co_await decode_array<Socket, std::string>(socket, '\0');
 
             if (timber::reporting_level >= timber::level::trace) {
                 TIMBER_TRACE("read string");
                 log_string(string);
             }
 
-            return string;
+            co_return string;
         }
 
-        static auto write(Socket& socket, const std::string& string) -> void {
-            write_array(socket, string);
+        static auto encode(
+            Socket& socket,
+            const std::string& string
+        ) -> ext::task<> {
+            co_await encode_array(socket, string);
 
             if (timber::reporting_level >= timber::level::trace) {
                 TIMBER_TRACE("write string");
@@ -40,17 +44,12 @@ namespace zipline {
     };
 
     template <typename Socket>
-    struct transfer<Socket, std::string_view> {
-        static auto read(Socket& socket) -> std::string_view {
-            TIMBER_ERROR("string_view does not support reading");
-            throw unsupported_transfer_type();
-        }
-
-        static auto write(
+    struct coder<Socket, std::string_view> {
+        static auto encode(
             Socket& socket,
             const std::string_view& string
-        ) -> void {
-            write_array(socket, string);
+        ) -> ext::task<> {
+            co_await encode_array(socket, string);
 
             if (timber::reporting_level >= timber::level::trace) {
                 TIMBER_TRACE("write string_view");

@@ -1,8 +1,11 @@
 #pragma once
 
+#include "error.h"
+
 #include <array>
 #include <cstddef>
 #include <cstring>
+#include <ext/coroutine>
 #include <span>
 #include <timber/timber>
 
@@ -11,11 +14,13 @@ namespace zipline {
     class buffered_base {
         std::array<std::byte, BufferSize> buffer;
     protected:
-        Socket* socket;
+        Socket* socket = nullptr;
         std::size_t head = 0;
         std::size_t tail = 0;
 
-        buffered_base(Socket& socket) : socket(&socket) {}
+        buffered_base() = default;
+
+        explicit buffered_base(Socket& socket) : socket(&socket) {}
 
         constexpr auto capacity() -> std::size_t { return buffer.size(); }
 
@@ -35,24 +40,22 @@ namespace zipline {
 
     template <typename Socket, std::size_t BufferSize>
     class buffered_reader : public buffered_base<Socket, BufferSize> {
-        auto fill_buffer() -> void {
+        auto fill_buffer() -> ext::task<> {
             this->clear();
 
-            this->tail = this->socket->read(
+            this->tail = co_await this->socket->read(
                 this->front(),
                 this->capacity()
             );
 
-            if (this->empty()) {
-                throw std::runtime_error("Reader received EOF");
-            }
+            if (this->empty()) throw eof();
         }
 
-        auto read_bytes(std::byte* dest, std::size_t len) -> void {
+        auto read_bytes(std::byte* dest, std::size_t len) -> ext::task<> {
             auto remaining = len;
 
             while (remaining > 0) {
-                if (this->empty()) fill_buffer();
+                if (this->empty()) co_await fill_buffer();
 
                 const auto available = this->size();
                 const auto bytes = std::min(remaining, available);
@@ -67,12 +70,14 @@ namespace zipline {
             }
         }
     public:
-        buffered_reader(Socket& socket) :
+        buffered_reader() = default;
+
+        explicit buffered_reader(Socket& socket) :
             buffered_base<Socket, BufferSize>(socket)
         {}
 
-        auto read(std::size_t len) -> std::span<const std::byte> {
-            if (this->empty()) fill_buffer();
+        auto read(std::size_t len) -> ext::task<std::span<const std::byte>> {
+            if (this->empty()) co_await fill_buffer();
 
             const auto available = this->size();
             const auto bytes = std::min(len, available);
@@ -80,11 +85,11 @@ namespace zipline {
             const auto result = std::span(this->front(), bytes);
             this->head += bytes;
 
-            return result;
+            co_return result;
         }
 
-        auto read(void* dest, std::size_t len) -> void {
-            read_bytes(
+        auto read(void* dest, std::size_t len) -> ext::task<> {
+            co_await read_bytes(
                 reinterpret_cast<std::byte*>(dest),
                 len
             );
@@ -93,19 +98,19 @@ namespace zipline {
 
     template <typename Socket, std::size_t BufferSize>
     class buffered_writer : public buffered_base<Socket, BufferSize> {
-        auto free() -> std::size_t {
+        auto free() -> ext::task<std::size_t> {
             const auto available = this->capacity() - this->tail;
-            if (available > 0) return available;
+            if (available > 0) co_return available;
 
-            flush();
-            return this->capacity();
+            co_await flush();
+            co_return this->capacity();
         }
 
-        auto write_bytes(const std::byte* src, std::size_t len) -> void {
+        auto write_bytes(const std::byte* src, std::size_t len) -> ext::task<> {
             auto remaining = len;
 
             while (remaining > 0) {
-                const auto available = free();
+                const auto available = co_await free();
                 const auto& bytes = std::min(remaining, available);
 
                 std::memcpy(this->back(), src, bytes);
@@ -118,37 +123,27 @@ namespace zipline {
             }
         }
     public:
-        buffered_writer(Socket& socket) :
+        buffered_writer() = default;
+
+        explicit buffered_writer(Socket& socket) :
             buffered_base<Socket, BufferSize>(socket)
         {}
 
-        ~buffered_writer() {
-            try {
-                flush();
-            }
-            catch (const std::exception& ex) {
-                TIMBER_ERROR(
-                    "Write operation failed with {} bytes unset: {}",
-                    this->size(),
-                    ex.what()
-                );
-            }
-        }
-
-        auto flush() -> void {
+        auto flush() -> ext::task<> {
             for (
                 auto remaining = this->size();
                 remaining > 0;
                 remaining = this->size()
             ) {
-                this->head += this->socket->write(this->front(), remaining);
+                this->head +=
+                    co_await this->socket->write(this->front(), remaining);
             }
 
             this->clear();
         }
 
-        auto write(const void* src, std::size_t len) -> void {
-            write_bytes(
+        auto write(const void* src, std::size_t len) -> ext::task<> {
+            co_await write_bytes(
                 reinterpret_cast<const std::byte*>(src),
                 len
             );
@@ -157,44 +152,34 @@ namespace zipline {
 
     template <typename Socket, std::size_t BufferSize>
     class buffered_socket {
-        Socket sock;
+        Socket socket;
         buffered_reader<Socket, BufferSize> reader;
         buffered_writer<Socket, BufferSize> writer;
     public:
-        buffered_socket(Socket&& socket) :
-            sock(std::move(socket)),
-            reader(sock),
-            writer(sock)
+        buffered_socket() = default;
+
+        explicit buffered_socket(Socket&& socket) :
+            socket(std::forward<Socket>(socket)),
+            reader(this->socket),
+            writer(this->socket)
         {}
 
-        buffered_socket(buffered_socket&& other) noexcept :
-            sock(std::move(other.sock)),
-            reader(sock),
-            writer(sock)
-        {}
+        auto flush() -> ext::task<> { co_await writer.flush(); }
 
-        auto operator=(
-            buffered_socket&& other
-        ) noexcept -> buffered_socket& {
-            sock = std::move(other.sock);
-            reader = decltype(reader)(sock);
-            writer = decltype(writer)(sock);
+        auto inner() noexcept -> Socket& { return socket; }
+
+        auto into_inner() noexcept -> Socket { return std::move(socket); }
+
+        auto read(std::size_t len) -> ext::task<std::span<const std::byte>> {
+            co_return co_await reader.read(len);
         }
 
-        auto flush() -> void { writer.flush(); }
-
-        auto read(std::size_t len) -> std::span<const std::byte> {
-            return reader.read(len);
+        auto read(void* dest, std::size_t len) -> ext::task<> {
+            co_await reader.read(dest, len);
         }
 
-        auto read(void* dest, std::size_t len) -> void {
-            reader.read(dest, len);
-        }
-
-        auto socket() const -> const Socket& { return sock; }
-
-        auto write(const void* src, std::size_t len) -> void {
-            writer.write(src, len);
+        auto write(const void* src, std::size_t len) -> ext::task<> {
+            co_await writer.write(src, len);
         }
     };
 
@@ -203,7 +188,7 @@ namespace zipline {
         std::ostream& os,
         const buffered_socket<Socket, BufferSize>& buffer
     ) -> std::ostream& {
-        os << buffer.socket();
+        os << buffer.inner();
         return os;
     }
 }
