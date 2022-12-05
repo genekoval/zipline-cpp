@@ -1,7 +1,7 @@
 #pragma once
 
-#include <zipline/error.h>
-#include <zipline/coder/coder.h>
+#include "error.h"
+#include "codable/codable"
 
 #include <typeindex>
 #include <typeinfo>
@@ -26,7 +26,7 @@ namespace zipline {
         template <std::size_t ...I>
         auto initialize(std::index_sequence<I...>) -> void {
             ((errors[I] = [](Socket& sock) -> ext::task<error> {
-                co_return co_await coder<Socket, type<I>>::decode(sock);
+                co_return co_await decoder<type<I>, Socket>::decode(sock);
             }), ...);
 
             ((codes[std::type_index(typeid(type<I>))] = I), ...);

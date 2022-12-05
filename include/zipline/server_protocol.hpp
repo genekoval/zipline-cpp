@@ -1,6 +1,6 @@
 #pragma once
 
-#include <zipline/protocol.h>
+#include "protocol.hpp"
 
 #include <tuple>
 
@@ -10,6 +10,7 @@ namespace zipline {
         typename Socket,
         typename ErrorList
     >
+    requires io::reader<Socket> && io::writer<Socket>
     class server_protocol : public protocol<Socket, ErrorList> {
         using context_ref = std::reference_wrapper<Context>;
 

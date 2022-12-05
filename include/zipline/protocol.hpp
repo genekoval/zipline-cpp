@@ -1,6 +1,6 @@
 #pragma once
 
-#include <zipline/response.h>
+#include "response.hpp"
 
 #include <string>
 #include <string_view>
@@ -9,6 +9,7 @@
 
 namespace zipline {
     template <typename Socket, typename ErrorList>
+    requires io::reader<Socket> && io::writer<Socket>
     class protocol {
     protected:
         template <typename T>
@@ -26,24 +27,22 @@ namespace zipline {
         {}
 
         template <typename T>
-        auto read() const -> ext::task<T> {
-            co_return co_await coder<Socket, T>::decode(*sock);
+        requires decodable<T, Socket>
+        auto read() const -> ext::task<std::remove_cvref_t<T>> {
+            return decode<T>(*sock);
         }
 
         template <typename T>
-        auto response() const -> ext::task<T> {
+        auto response() const -> ext::task<std::remove_cvref_t<T>> {
             co_await sock->flush();
-            auto res = response_type<T>(*sock);
+            auto res = response_type<std::remove_cvref_t<T>>(*sock);
             co_return co_await res.read(*errors);
         }
 
         template <typename T>
+        requires encodable<T, Socket>
         auto write(const T& t) const -> ext::task<> {
-            co_await coder<Socket, T>::encode(*sock, t);
-        }
-
-        auto write_bytes(std::span<const std::byte> bytes) -> ext::task<> {
-            co_await sock->write(bytes.data(), bytes.size());
+            return encode(t, *sock);
         }
     };
 }

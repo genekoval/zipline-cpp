@@ -4,8 +4,11 @@
 
 #include <gtest/gtest.h>
 
+namespace zipline::test {
+    using buffer_type = zipline::io::array_buffer<1024>;
+}
+
 class SocketTestBase : public testing::Test {
-    std::array<std::byte, 1024> buffer;
 protected:
-    zipline::memory_buffer socket = zipline::memory_buffer(buffer.data());
+    zipline::test::buffer_type buffer;
 };

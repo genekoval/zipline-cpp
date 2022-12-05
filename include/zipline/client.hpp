@@ -1,11 +1,16 @@
 #pragma once
 
-#include <zipline/protocol.h>
+#include "protocol.hpp"
 
 #include <span>
 
 namespace zipline {
     template <typename Socket, typename EventT, typename ErrorList>
+    requires
+        io::reader<Socket> &&
+        io::writer<Socket> &&
+        std::is_enum_v<EventT> &&
+        codable<std::underlying_type_t<EventT>, Socket>
     class client {
         using protocol_type = protocol<Socket, ErrorList>;
 
@@ -43,7 +48,10 @@ namespace zipline {
 
         template <typename ...Args>
         auto start(EventT event, const Args&... args) const -> ext::task<> {
-            co_await write(event, args...);
+            co_await write(
+                static_cast<std::underlying_type_t<EventT>>(event),
+                args...
+            );
         }
 
         template <typename ...Args>

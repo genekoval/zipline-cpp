@@ -2,33 +2,39 @@
 
 #include <gtest/gtest.h>
 
+using socket = zipline::io::array_buffer<8>;
+
 #define CUSTOM_ERROR(n) \
-    struct custom_error_##n :\
-        zipline::zipline_error<socket, custom_error_##n>\
-    {\
-        custom_error_##n() :\
-            zipline::zipline_error<socket, custom_error_##n>(\
-                "custom error " #n)\
-        {}\
+    struct custom_error_##n : \
+        zipline::zipline_error<socket, custom_error_##n> \
+    { \
+        custom_error_##n() : \
+            zipline::zipline_error<socket, custom_error_##n>( \
+                "custom error " #n) \
+        {} \
     };
 
 #define CUSTOM_ERROR_TRANSFER(n) \
-    template <>\
-    struct coder<socket, custom_error_##n> {\
-        static auto decode(socket& sock) -> ext::task<custom_error_##n> {\
-            co_return custom_error_##n();\
-        }\
-        static auto encode(socket& sock, custom_error_##n ex) -> ext::task<> {\
-            co_return;\
-        }\
+    template <zipline::io::reader Reader> \
+    struct decoder<custom_error_##n, Reader> { \
+        static auto decode(Reader&) -> ext::task<custom_error_##n> { \
+            co_return custom_error_##n(); \
+        } \
+    }; \
+\
+    template <zipline::io::writer Writer> \
+    struct encoder<custom_error_##n, Writer> { \
+        static auto encode(custom_error_##n, Writer&) -> ext::task<> { \
+            co_return; \
+        } \
     };
 
 using namespace std::literals;
 
-struct socket {};
-
-CUSTOM_ERROR(1)
-CUSTOM_ERROR(2)
+namespace {
+    CUSTOM_ERROR(1)
+    CUSTOM_ERROR(2)
+}
 
 namespace zipline {
     CUSTOM_ERROR_TRANSFER(1)

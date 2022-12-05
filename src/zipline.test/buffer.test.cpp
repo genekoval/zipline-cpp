@@ -3,29 +3,22 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-namespace {
-    constexpr auto buffer_size = 64;
+using testing::Test;
+using zipline::io::array_buffer;
 
-    using buffered_socket =
-        zipline::buffered_socket<zipline::memory_buffer, buffer_size>;
-}
-
-class BufferTest : public testing::Test {
-    std::array<std::byte, 1024> buffer;
+class BufferTest : public Test {
 protected:
-    buffered_socket socket =
-        buffered_socket(zipline::memory_buffer(buffer.data()));
+    array_buffer<64> buffer;
 };
 
 TEST_F(BufferTest, ReadWrite) {
     [&]() -> ext::detached_task {
         constexpr auto original = std::string_view("Hello, Buffer Test!");
 
-        co_await socket.write(original.data(), original.size());
-        co_await socket.flush();
+        co_await buffer.write(original.data(), original.size());
 
         auto copy = std::array<char, original.size()>();
-        co_await socket.read(copy.data(), original.size());
+        co_await buffer.read(copy.data(), original.size());
 
         const auto result = std::string_view(copy.data(), copy.size());
 

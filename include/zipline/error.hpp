@@ -1,12 +1,16 @@
 #pragma once
 
-#include <zipline/coder/coder.h>
+#include "codable/codable"
 
 #include <stdexcept>
 
 namespace zipline {
     struct eof : std::runtime_error {
         eof() : std::runtime_error("unexpected EOF") {}
+    };
+
+    struct insufficient_space : std::runtime_error {
+        insufficient_space() : std::runtime_error("insufficient space") {}
     };
 
     template <typename Socket>
@@ -31,9 +35,9 @@ namespace zipline {
         virtual ~zipline_error() {}
 
         auto write(Socket& socket) const -> ext::task<> final {
-            co_await coder<Socket, Derived>::encode(
-                socket,
-                *(static_cast<const Derived*>(this))
+            co_await encoder<Derived, Socket>::encode(
+                *(static_cast<const Derived*>(this)),
+                socket
             );
         }
     };

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <zipline/error.h>
-#include <zipline/error_list.h>
-#include <zipline/coder/coder.h>
+#include "error.hpp"
+#include "error_list.hpp"
+#include "codable/codable"
 
 namespace zipline {
     template <
@@ -10,6 +10,7 @@ namespace zipline {
         typename Socket,
         typename ErrorList
     >
+    requires io::reader<Socket> && io::writer<Socket>
     class response_base {
     protected:
         Socket* socket;
@@ -18,7 +19,7 @@ namespace zipline {
             std::exception_ptr ex,
             const ErrorList& errors
         ) const -> ext::task<> {
-            auto code = status_type(0);
+            status_type code = 0;
             auto task = ext::task<>();
             auto message = std::string_view();
 
@@ -32,30 +33,24 @@ namespace zipline {
             catch (const std::exception& ex) {
                 code = 1;
                 message = ex.what();
-                task =
-                    coder<Socket, std::string_view>::encode(*socket, message);
+                task = encode(message, *socket);
             }
 
-            co_await coder<Socket, status_type>::encode(*socket, code);
+            co_await encode(code, *socket);
             co_await task;
-        }
-
-        template <typename U>
-        auto decode() const -> ext::task<U> {
-            co_return co_await coder<Socket, U>::decode(*socket);
         }
     public:
         response_base(Socket& socket) : socket(&socket) {}
 
         auto read(const ErrorList& errors) const -> ext::task<T> {
-            const auto status = co_await decode<status_type>();
+            const auto status = co_await decode<status_type>(*socket);
 
             switch (status) {
                 case 0:
                     if constexpr (std::is_void_v<T>) co_return;
-                    else co_return co_await decode<T>();
+                    else co_return co_await decode<T>(*socket);
                 case 1: {
-                    const auto message = co_await decode<std::string>();
+                    const auto message = co_await decode<std::string>(*socket);
                     throw std::runtime_error(message);
                 }
                 default:
@@ -82,8 +77,8 @@ namespace zipline {
             try {
                 result = co_await std::apply(callable, args);
                 task = [](auto& socket, auto& result) -> ext::task<> {
-                    co_await coder<Socket, status_type>::encode(socket, 0);
-                    co_await coder<Socket, T>::encode(socket, result);
+                    co_await encode<status_type>(0, socket);
+                    co_await encode(result, socket);
                 }(*this->socket, result);
             }
             catch (...) {
@@ -107,18 +102,11 @@ namespace zipline {
             Callable&& callable,
             Arguments&& args
         ) const -> ext::task<> {
-            // TODO If integral encoding is specialized to take a copy instead
-            // of reference, this constant could be removed.
-            constexpr status_type success = 0;
-
             auto task = ext::task<>();
 
             try {
                 co_await std::apply(callable, args);
-                task = coder<Socket, status_type>::encode(
-                    *this->socket,
-                    success
-                );
+                task = encode<status_type>(0, *this->socket);
             }
             catch (...) {
                 task = this->handle_error(std::current_exception(), errors);
@@ -129,11 +117,11 @@ namespace zipline {
         }
     };
 
-    template <typename T, typename Socket, typename ErrorList>
-    struct coder<Socket, response<T, Socket, ErrorList>> {
-        using type = response<T, Socket, ErrorList>;
+    template <typename T, io::reader Reader, typename ErrorList>
+    struct decoder<response<T, Reader, ErrorList>, Reader> {
+        using type = response<T, Reader, ErrorList>;
 
-        static auto decode(Socket& sock) -> ext::task<type> {
+        static auto decode(Reader& sock) -> ext::task<type> {
             co_return type(sock);
         }
     };

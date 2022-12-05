@@ -1,7 +1,7 @@
 #pragma once
 
 #include "error.h"
-#include "server_protocol.h"
+#include "server_protocol.hpp"
 
 #include <array>
 #include <timber/timber>
@@ -14,6 +14,9 @@ namespace zipline {
         typename Context,
         typename ...Routes
     >
+    requires
+        io::reader<Socket> && io::writer<Socket> &&
+        std::unsigned_integral<EventT> && codable<EventT, Socket>
     class router {
         using protocol_type = server_protocol<Context, Socket, ErrorList>;
         using route_type = auto (*)(

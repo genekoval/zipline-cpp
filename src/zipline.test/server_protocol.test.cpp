@@ -1,16 +1,14 @@
 #include "socket.test.h"
 
-#include <zipline/zipline>
-
 #include <cstring>
+
+using zipline::test::buffer_type;
 
 namespace {
     using namespace std::literals;
 
-    using socket = zipline::memory_buffer;
-
     template <typename Derived>
-    using zipline_error = zipline::zipline_error<socket, Derived>;
+    using zipline_error = zipline::zipline_error<buffer_type, Derived>;
 
     class custom_error : public zipline_error<custom_error> {
         int n;
@@ -32,16 +30,16 @@ namespace {
         std::string result;
 
         auto multiply_by_two(
-            int a,
-            int b,
-            int c
-        ) -> ext::task<std::vector<int>> {
+            std::int32_t a,
+            std::int32_t b,
+            std::int32_t c
+        ) -> ext::task<std::vector<std::int32_t>> {
             co_return std::vector { a * 2, b * 2, c * 2 };
         }
 
         auto concat(
             std::string str,
-            int i
+            std::int32_t i
         ) -> ext::task<> {
             result.append(str);
             result.append(std::to_string(i));
@@ -58,32 +56,38 @@ namespace {
         }
     };
 
-    using error_list = zipline::error_list<socket, custom_error>;
+    using error_list = zipline::error_list<buffer_type, custom_error>;
 
     using protocol = zipline::server_protocol<
         TestContext,
-        socket,
+        buffer_type,
         error_list
     >;
 }
 
 namespace zipline {
     template <>
-    struct coder<socket, custom_error> {
-        static auto decode(socket& sock) -> ext::task<custom_error> {
-            const auto n = co_await coder<socket, int>::decode(sock);
+    struct decoder<custom_error, buffer_type> {
+        static auto decode(buffer_type& buffer) -> ext::task<custom_error> {
+            const auto n = co_await decoder<int, buffer_type>::decode(buffer);
             const auto message =
-                co_await coder<socket, std::string>::decode(sock);
+                co_await decoder<std::string, buffer_type>::decode(buffer);
 
             co_return custom_error(n, message);
         }
+    };
 
+    template <>
+    struct encoder<custom_error, buffer_type> {
         static auto encode(
-            socket& sock,
-            const custom_error& error
+            const custom_error& error,
+            buffer_type& buffer
         ) -> ext::task<> {
-            co_await coder<socket, int>::encode(sock, error.number());
-            co_await coder<socket, std::string>::encode(sock, error.what());
+            co_await encoder<int, buffer_type>::encode(error.number(), buffer);
+            co_await encoder<std::string, buffer_type>::encode(
+                error.what(),
+                buffer
+            );
         }
     };
 }
@@ -92,13 +96,13 @@ class ServerProtocolTest : public SocketTestBase {
 protected:
     const error_list errors;
     TestContext context;
-    protocol proto = protocol(context, socket, errors);
+    protocol proto = protocol(context, buffer, errors);
 };
 
 TEST_F(ServerProtocolTest, UseWithReturn) {
     [this]() -> ext::detached_task {
-        const auto numbers = std::vector<int> { 1, 2, 3 };
-        const auto expected = std::vector<int> { 2, 4, 6 };
+        const auto numbers = std::vector<std::int32_t> { 1, 2, 3 };
+        const auto expected = std::vector<std::int32_t> { 2, 4, 6 };
 
         for (const auto n : numbers) co_await proto.write(n);
 
@@ -114,7 +118,7 @@ TEST_F(ServerProtocolTest, UseWithVoid) {
         constexpr auto expected = "foo500";
 
         const auto one = "foo"s;
-        const auto two = 500;
+        const std::int32_t two = 500;
 
         co_await proto.write(one);
         co_await proto.write(two);
