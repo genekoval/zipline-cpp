@@ -58,9 +58,5 @@ namespace zipline {
         auto write(const Args&... args) const -> ext::task<> {
             (co_await proto.write(args), ...);
         }
-
-        auto write_bytes(std::span<const std::byte> bytes) -> ext::task<> {
-            co_await proto.write_bytes(bytes);
-        }
     };
 }

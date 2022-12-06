@@ -4,6 +4,7 @@
 
 #include <ios>
 #include <optional>
+#include <timber/timber>
 
 namespace zipline {
     template <typename T, io::reader Reader>

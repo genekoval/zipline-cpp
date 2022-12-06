@@ -95,8 +95,7 @@ namespace zipline::io {
         Inner& inner;
 
         auto fill_buffer() -> ext::task<> {
-
-            const auto bytes = co_await inner->read(
+            const auto bytes = co_await inner.read(
                 buffer.front(),
                 buffer.available()
             );
@@ -143,7 +142,7 @@ namespace zipline::io {
 
         auto read(std::size_t len) -> ext::task<std::span<const std::byte>> {
             if (buffer.size() < len) co_await fill_buffer();
-            co_return buffer.read(len);
+            co_return co_await buffer.read(len);
         }
 
         auto read(void* dest, std::size_t len) -> ext::task<> {
