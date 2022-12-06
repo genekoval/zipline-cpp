@@ -37,4 +37,11 @@ namespace zipline {
             co_await writer.write(string.data(), size);
         }
     };
+
+    template <io::writer Writer>
+    struct encoder<const char*, Writer> {
+        static auto encode(const char* str, Writer& writer) -> ext::task<> {
+            co_await zipline::encode<std::string_view>(str, writer);
+        }
+    };
 }
