@@ -1,7 +1,5 @@
 #include "coder.test.hpp"
 
-using zipline::test::buffer_type;
-
 namespace {
     struct data {
         std::string text;
