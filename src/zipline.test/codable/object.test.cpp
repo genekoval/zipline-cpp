@@ -1,4 +1,4 @@
-#include "../socket.test.h"
+#include "coder.test.hpp"
 
 using zipline::test::buffer_type;
 
@@ -21,19 +21,10 @@ namespace zipline {
     );
 }
 
-using ObjectTest = SocketTestBase;
-
-TEST_F(ObjectTest, ReadWrite) {
-    [&]() -> ext::detached_task {
-        const auto original = data {
-            .text = "Object Test",
-            .number = 42,
-            .b = true
-        };
-
-        co_await zipline::encode(original, buffer);
-        auto copy = co_await zipline::decode<data>(buffer);
-
-        EXPECT_EQ(original, copy);
-    }();
+TEST_F(CoderTest, Object) {
+    test(data {
+        .text = "Object Test",
+        .number = 42,
+        .b = true
+    });
 }

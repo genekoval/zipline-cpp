@@ -1,4 +1,5 @@
 #include "bool.hpp"
+#include "enum.hpp"
 #include "integral.hpp"
 #include "object.hpp"
 #include "optional.hpp"
