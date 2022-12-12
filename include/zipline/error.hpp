@@ -5,40 +5,63 @@
 #include <stdexcept>
 
 namespace zipline {
-    struct eof : std::runtime_error {
-        eof() : std::runtime_error("unexpected EOF") {}
+    using status_type = std::uint8_t;
+
+    struct eof : std::exception {
+        auto what() const noexcept -> const char* override;
     };
 
-    struct insufficient_space : std::runtime_error {
-        insufficient_space() : std::runtime_error("insufficient space") {}
+    struct insufficient_space : std::exception {
+        auto what() const noexcept -> const char* override;
     };
 
-    template <typename Socket>
-    struct zipline_error_base : std::runtime_error {
-        zipline_error_base(const std::string& message) :
-            std::runtime_error(message)
-        {}
-
-        virtual ~zipline_error_base() {}
-
-        virtual auto write(Socket& socket) const -> ext::task<> {
-            co_return;
-        }
+    struct internal_error : std::exception {
+        auto what() const noexcept -> const char* override;
     };
 
-    template <typename Socket, typename Derived>
-    struct zipline_error : zipline_error_base<Socket> {
-        zipline_error(const std::string& message) :
-            zipline_error_base<Socket>(message)
-        {}
+    struct unknown_code : std::runtime_error {
+        unknown_code(status_type status);
+    };
 
-        virtual ~zipline_error() {}
+    class zipline_error : public std::runtime_error {
+        template <typename... Args>
+        static auto make_what(
+            std::string_view format_string,
+            Args&&... args
+        ) -> std::string {
+            if constexpr (sizeof...(args) == 0) {
+                return std::string(format_string);
+            }
 
-        auto write(Socket& socket) const -> ext::task<> final {
-            co_await encoder<Derived, Socket>::encode(
-                *(static_cast<const Derived*>(this)),
-                socket
+            return fmt::format(
+                fmt::runtime(format_string),
+                std::forward<Args>(args)...
             );
         }
+    public:
+        template <typename... Args>
+        zipline_error(std::string_view format_string, Args&&... args) :
+            std::runtime_error(make_what(
+                format_string,
+                std::forward<Args>(args)...
+            ))
+        {}
+
+        virtual ~zipline_error() = default;
+
+        virtual auto encode(io::abstract_writer& writer) const -> ext::task<>;
     };
+
+    template <typename T>
+    requires std::is_base_of_v<zipline_error, T>
+    struct decoder<T, io::abstract_reader> {
+        static auto decode(
+            io::abstract_reader& reader
+        ) -> ext::task<T> {
+            const auto message = co_await zipline::decode<std::string>(reader);
+            co_return T{message};
+        }
+    };
+
+    static_assert(decodable<zipline_error>);
 }

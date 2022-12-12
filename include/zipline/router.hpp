@@ -10,38 +10,38 @@ namespace zipline {
     template <
         typename Socket,
         typename EventT,
-        typename ErrorList,
         typename Context,
         typename ...Routes
     >
     requires
         io::reader<Socket> && io::writer<Socket> &&
-        std::unsigned_integral<EventT> && codable<EventT, Socket>
+        std::unsigned_integral<EventT> && decodable<EventT, Socket>
     class router {
-        using protocol_type = server_protocol<Context, Socket, ErrorList>;
+        using protocol = server_protocol<Context, Socket>;
+        using route_storage = std::tuple<Routes...>;
         using route_type = auto (*)(
             const std::tuple<Routes...>&,
-            protocol_type&
+            protocol&
         ) -> ext::task<>;
 
         Context ctx;
-        const ErrorList errors;
+        const error_codes& errors;
         std::array<route_type, sizeof...(Routes)> routes;
-        std::tuple<Routes...> route_source;
+        route_storage storage;
 
         template <std::size_t ...I>
         auto initialize(std::index_sequence<I...>) -> void {
             ((routes[I] = [](
-                const std::tuple<Routes...>& source,
-                protocol_type& proto
+                const route_storage& storage,
+                protocol& proto
             ) -> ext::task<> {
-                co_await proto.use(std::get<I>(source));
+                co_await proto.use(std::get<I>(storage));
             }), ...);
         }
 
-        auto route_one(protocol_type& proto) -> ext::task<bool> {
+        auto route_one(protocol& proto) -> ext::task<bool> {
             auto event = EventT();
-            auto route = static_cast<route_type>(nullptr);
+            route_type route = nullptr;
 
             try {
                 event = co_await proto.template read<EventT>();
@@ -61,15 +61,16 @@ namespace zipline {
                 co_return false;
             }
 
-            co_await route(route_source, proto);
+            co_await route(storage, proto);
             TIMBER_DEBUG("event handled: {}", event);
 
             co_return true;
         }
     public:
-        router(Context&& ctx, Routes... r) :
-            ctx(std::move(ctx)),
-            route_source(r...)
+        router(Context&& ctx, const error_codes& errors, Routes&&... r) :
+            ctx(std::forward<Context>(ctx)),
+            errors(errors),
+            storage(std::forward<Routes>(r)...)
         {
             initialize(std::index_sequence_for<Routes...>());
 
@@ -80,14 +81,14 @@ namespace zipline {
         }
 
         auto route(Socket& sock) -> ext::task<> {
-            auto proto = protocol_type(ctx, sock, errors);
+            auto proto = protocol(ctx, errors, sock);
             auto run = true;
 
             while (run) run = co_await route_one(proto);
         }
 
         auto route_one(Socket& sock) -> ext::task<> {
-            auto proto = protocol_type(ctx, sock, errors);
+            auto proto = protocol(ctx, errors, sock);
             co_await route_one(proto);
         }
     };

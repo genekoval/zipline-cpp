@@ -3,7 +3,6 @@
 #include "error.hpp"
 #include "error_list.hpp"
 #include "io/io"
-#include "protocol.hpp"
 #include "response.hpp"
 #include "router.hpp"
 #include "server_protocol.hpp"

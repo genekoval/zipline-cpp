@@ -7,26 +7,35 @@ using zipline::test::buffer_type;
 namespace {
     using namespace std::literals;
 
-    template <typename Derived>
-    using zipline_error = zipline::zipline_error<buffer_type, Derived>;
-
-    class custom_error : public zipline_error<custom_error> {
+    class custom_error : public zipline::zipline_error {
         int n;
     public:
         custom_error(int n, std::string message) :
-            zipline_error(message),
+            zipline::zipline_error(message),
             n(n)
         {}
 
         auto number() const -> int {
             return n;
         }
+
+        auto encode(
+            zipline::io::abstract_writer& writer
+        ) const -> ext::task<> override {
+            co_await zipline::encode(number(), writer);
+            co_await zipline::encode(what(), writer);
+        }
     };
 
-    const auto error_string = "This is a test error."s;
+    struct unregistered_error : std::exception {
+        auto what() const noexcept -> const char* override {
+            return "unregistered error";
+        }
+    };
+
     constexpr auto number = 500;
 
-    struct TestContext {
+    struct test_context {
         std::string result;
 
         auto multiply_by_two(
@@ -48,55 +57,44 @@ namespace {
         }
 
         auto throw_error() -> ext::task<> {
-            throw std::runtime_error(error_string);
+            throw unregistered_error();
         }
 
-        auto throw_custom_error() -> ext::task<> {
-            throw custom_error(number, error_string);
+        auto throw_custom_error(std::string what) -> ext::task<> {
+            throw custom_error(number, what);
         }
     };
 
-    using error_list = zipline::error_list<buffer_type, custom_error>;
+    using client = zipline::client<buffer_type, int>;
 
-    using protocol = zipline::server_protocol<
-        TestContext,
-        buffer_type,
-        error_list
-    >;
+    using protocol = zipline::server_protocol<test_context, buffer_type>;
 }
 
 namespace zipline {
     template <>
-    struct decoder<custom_error, buffer_type> {
-        static auto decode(buffer_type& buffer) -> ext::task<custom_error> {
-            const auto n = co_await decoder<int, buffer_type>::decode(buffer);
-            const auto message =
-                co_await decoder<std::string, buffer_type>::decode(buffer);
+    struct decoder<custom_error, io::abstract_reader> {
+        static auto decode(
+            io::abstract_reader& reader
+        ) -> ext::task<custom_error> {
+            const auto n = co_await zipline::decode<int>(reader);
+            const auto message = co_await zipline::decode<std::string>(reader);
 
             co_return custom_error(n, message);
         }
     };
+}
 
-    template <>
-    struct encoder<custom_error, buffer_type> {
-        static auto encode(
-            const custom_error& error,
-            buffer_type& buffer
-        ) -> ext::task<> {
-            co_await encoder<int, buffer_type>::encode(error.number(), buffer);
-            co_await encoder<std::string, buffer_type>::encode(
-                error.what(),
-                buffer
-            );
-        }
-    };
+namespace {
+    using error_list = zipline::error_list<custom_error>;
 }
 
 class ServerProtocolTest : public SocketTestBase {
 protected:
-    const error_list errors;
-    TestContext context;
-    protocol proto = protocol(context, buffer, errors);
+    const zipline::error_codes& codes = error_list::codes();
+    const zipline::error_thrower& thrower = error_list::thrower();
+    test_context context;
+    protocol proto = protocol(context, codes, buffer);
+    zipline::client<buffer_type&, int> client = {thrower, buffer};
 };
 
 TEST_F(ServerProtocolTest, UseWithReturn) {
@@ -104,10 +102,10 @@ TEST_F(ServerProtocolTest, UseWithReturn) {
         const auto numbers = std::vector<std::int32_t> { 1, 2, 3 };
         const auto expected = std::vector<std::int32_t> { 2, 4, 6 };
 
-        for (const auto n : numbers) co_await proto.write(n);
+        for (const std::int32_t n : numbers) co_await client.write_all(n);
 
-        co_await proto.use(&TestContext::multiply_by_two);
-        const auto result = co_await proto.response<std::vector<int>>();
+        co_await proto.use(&test_context::multiply_by_two);
+        const auto result = co_await client.read_response<std::vector<int>>();
 
         EXPECT_EQ(expected, result);
     }();
@@ -120,44 +118,37 @@ TEST_F(ServerProtocolTest, UseWithVoid) {
         const auto one = "foo"s;
         const std::int32_t two = 500;
 
-        co_await proto.write(one);
-        co_await proto.write(two);
+        co_await client.write_all(one, two);
 
-        co_await proto.use(&TestContext::concat);
-        co_await proto.response<void>();
+        co_await proto.use(&test_context::concat);
+        co_await client.read_response();
 
         EXPECT_EQ(expected, context.result);
     }();
 }
 
 TEST_F(ServerProtocolTest, UseWithThrow) {
-    auto fail = false;
-
     [&]() -> ext::detached_task {
-        try {
-            co_await proto.use(&TestContext::throw_error);
-            co_await proto.response<void>();
-            fail = true;
-            co_return;
-        }
-        catch (const std::runtime_error& ex) {
-            EXPECT_EQ(error_string, ex.what());
-        }
-    }();
+        co_await proto.use(&test_context::throw_error);
 
-    if (fail) FAIL() << "An error should have been thrown.";
+        EXPECT_THROW(co_await client.read_response(), zipline::internal_error);
+    }();
 }
 
 TEST_F(ServerProtocolTest, UseWithCustomThrow) {
     auto fail = false;
     [&]() -> ext::detached_task {
+        constexpr auto what = "custom error message"sv;
+
+        co_await client.write_all(what);
+        co_await proto.use(&test_context::throw_custom_error);
+
         try {
-            co_await proto.use(&TestContext::throw_custom_error);
-            co_await proto.response<void>();
+            co_await client.read_response();
         }
         catch (const custom_error& ex) {
             EXPECT_EQ(number, ex.number());
-            EXPECT_EQ(error_string, ex.what());
+            EXPECT_EQ(what, ex.what());
         }
     }();
 

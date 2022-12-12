@@ -28,49 +28,58 @@ namespace {
         }
     };
 
-    using event_type = std::uint16_t;
-
-    enum class event : event_type {
+    enum class event : std::uint16_t {
         greet,
         save,
         set_default
     };
 
-    using error_list = zipline::error_list<buffer_type>;
+    namespace detail {
+        template <typename... Routes>
+        auto make_router(context&& ctx, Routes&&... routes) {
+            return zipline::router<
+                buffer_type,
+                std::underlying_type_t<event>,
+                context,
+                Routes...
+            >(
+                std::forward<context>(ctx),
+                zipline::error_list<>::codes(),
+                std::forward<Routes>(routes)...
+            );
+        }
+    }
 
-    using router = zipline::router<
-        buffer_type,
-        event_type,
-        error_list,
-        context,
-        decltype(&context::greet),
-        decltype(&context::save),
-        decltype(&context::set_default)
-    >;
-
-    auto make_router(std::string& storage) -> router {
-        return router(
+    auto make_router(std::string& storage) {
+        return detail::make_router(
             context(storage),
             &context::greet,
             &context::save,
             &context::set_default
         );
     }
+
+    using router_type = std::invoke_result_t<
+        decltype(make_router),
+        std::string&
+    >;
+
+    using client_type = zipline::client<buffer_type&, event>;
 }
 
 class RouterTest : public SocketTestBase {
 protected:
-    const error_list errors;
-
     std::string storage;
 
-    zipline::client<buffer_type, event, error_list> client =
-        {errors, buffer};
+    router_type router = make_router(storage);
 
-    router routes = make_router(storage);
+    client_type client = client_type(
+        zipline::error_list<>::thrower(),
+        buffer
+    );
 
     auto route() -> ext::task<> {
-        return routes.route_one(buffer);
+        return router.route_one(buffer);
     }
 };
 
@@ -79,18 +88,18 @@ TEST_F(RouterTest, MemberRoute) {
         constexpr auto world = "world"sv;
         co_await client.start(event::greet, world);
         co_await route();
-        const auto response = co_await client.response<std::string>();
+        const auto response = co_await client.read_response<std::string>();
         EXPECT_EQ("Hello, world!", response);
 
         constexpr auto value = "my value"sv;
         co_await client.start(event::save, value);
         co_await route();
-        co_await client.response<>();
+        co_await client.read_response();
         EXPECT_EQ(value, storage);
 
         co_await client.start(event::set_default);
         co_await route();
-        co_await client.response<>();
+        co_await client.read_response();
         EXPECT_EQ("default"sv, storage);
     }();
 }

@@ -1,112 +1,134 @@
-#include <zipline/zipline>
+#include "socket.test.hpp"
 
-#include <gtest/gtest.h>
+using zipline::error_list;
+using zipline::test::buffer_type;
 
-using socket = zipline::io::array_buffer<8>;
-
-#define CUSTOM_ERROR(n) \
-    struct custom_error_##n : \
-        zipline::zipline_error<socket, custom_error_##n> \
-    { \
-        custom_error_##n() : \
-            zipline::zipline_error<socket, custom_error_##n>( \
-                "custom error " #n) \
-        {} \
-    };
-
-#define CUSTOM_ERROR_TRANSFER(n) \
-    template <zipline::io::reader Reader> \
-    struct decoder<custom_error_##n, Reader> { \
-        static auto decode(Reader&) -> ext::task<custom_error_##n> { \
-            co_return custom_error_##n(); \
-        } \
-    }; \
-\
-    template <zipline::io::writer Writer> \
-    struct encoder<custom_error_##n, Writer> { \
-        static auto encode(custom_error_##n, Writer&) -> ext::task<> { \
-            co_return; \
-        } \
-    };
+using abstract_reader = zipline::io::abstract_reader_wrapper<buffer_type>;
+using abstract_writer = zipline::io::abstract_writer_wrapper<buffer_type>;
 
 using namespace std::literals;
 
 namespace {
-    CUSTOM_ERROR(1)
-    CUSTOM_ERROR(2)
+    struct basic_error : zipline::zipline_error {
+        using zipline_error::zipline_error;
+    };
+
+    struct custom_error : zipline::zipline_error {
+        custom_error(int n) : zipline::zipline_error(
+            fmt::format("custom error {}", n)
+        ) {}
+
+        auto encode(
+            zipline::io::abstract_writer& wrtier
+        ) const -> ext::task<> override {
+            co_return;
+        }
+    };
+
+    struct custom_error_1 : custom_error {
+        custom_error_1() : custom_error(1) {}
+    };
+
+    struct custom_error_2 : custom_error {
+        custom_error_2() : custom_error(2) {}
+    };
 }
 
 namespace zipline {
-    CUSTOM_ERROR_TRANSFER(1)
-    CUSTOM_ERROR_TRANSFER(2)
+    template <>
+    struct decoder<custom_error_1, io::abstract_reader> {
+        static auto decode(
+            io::abstract_reader& reader
+        ) -> ext::task<custom_error_1> {
+            co_return custom_error_1();
+        }
+    };
+
+    template <>
+    struct decoder<custom_error_2, io::abstract_reader> {
+        static auto decode(
+            io::abstract_reader& reader
+        ) -> ext::task<custom_error_2> {
+            co_return custom_error_2();
+        }
+    };
 }
 
-template <typename ...Errors>
-using error_list = zipline::error_list<socket, Errors...>;
+class ErrorTest : public SocketTestBase {
+protected:
+    abstract_reader reader = buffer;
+    abstract_writer writer = buffer;
+};
 
-TEST(ErrorTest, EmptyList) {
-    const auto errors = error_list<>();
-    ASSERT_EQ(0, errors.size());
+TEST_F(ErrorTest, EmptyList) {
+    ASSERT_EQ(0, error_list<>::size());
 }
 
-TEST(ErrorTest, OneError) {
-    const auto errors = error_list<custom_error_1>();
-    ASSERT_EQ(1, errors.size());
+TEST_F(ErrorTest, OneError) {
+    using errors = error_list<basic_error>;
 
-    const auto ex = custom_error_1();
-    ASSERT_EQ(0, errors.code(ex));
+    constexpr auto message = "basic error test"sv;
 
-    auto sock = socket();
-    auto fail = false;
+    ASSERT_EQ(1, errors::size());
+
+    const auto& codes = errors::codes();
+
+    const auto ex = basic_error(message);
+    ASSERT_EQ(0, codes.code(ex));
+
+    const auto& thrower = errors::thrower();
+    auto thrown = false;
 
     [&]() -> ext::detached_task {
+        co_await ex.encode(writer);
+
         try {
-            co_await errors.throw_error(sock, 0);
-            fail = true;
-            co_return;
+            co_await thrower.throw_error(0, reader);
         }
-        catch (const custom_error_1& ex) {
-            EXPECT_EQ("custom error 1"sv, ex.what());
+        catch (const basic_error& ex) {
+            thrown = true;
+            EXPECT_EQ(message, ex.what());
         }
     }();
 
-    if (fail) FAIL() << "Error should have been thrown.";
+    if (!thrown) FAIL() << "Error should have been thrown.";
 }
 
-TEST(ErrorTest, MultipleErrors) {
-    const auto errors = error_list<
+TEST_F(ErrorTest, MultipleErrors) {
+    using errors = error_list<
         custom_error_1,
         custom_error_2
-    >();
+    >;
 
-    ASSERT_EQ(2, errors.size());
+    ASSERT_EQ(2, errors::size());
 
-    auto sock = socket();
-    auto fail = false;
+    const auto& codes = errors::codes();
+    const auto& thrower = errors::thrower();
+
+    auto thrown = false;
 
     [&]() -> ext::detached_task {
         try {
-            co_await errors.throw_error(sock, 0);
-            fail = true;
-            co_return;
+            co_await thrower.throw_error(0, reader);
         }
         catch (const custom_error_1& ex) {
-            EXPECT_EQ(0, errors.code(ex));
+            thrown = true;
+            EXPECT_EQ(0, codes.code(ex));
         }
     }();
 
-    if (fail) FAIL() << "Error should have been thrown.";
+    if (!thrown) FAIL() << "Error should have been thrown.";
+    thrown = false;
 
     [&]() -> ext::detached_task {
         try {
-            co_await errors.throw_error(sock, 1);
-            fail = true;
-            co_return;
+            co_await thrower.throw_error(1, reader);
         }
         catch (const custom_error_2& ex) {
-            EXPECT_EQ(1, errors.code(ex));
+            thrown = true;
+            EXPECT_EQ(1, codes.code(ex));
         }
     }();
 
-    if (fail) FAIL() << "Error should have been thrown.";
+    if (!thrown) FAIL() << "Error should have been thrown.";
 }

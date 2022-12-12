@@ -92,7 +92,6 @@ namespace zipline::io {
     template <source Inner, std::size_t N>
     class buffered_reader final {
         array_buffer<N> buffer;
-        Inner& inner;
 
         auto fill_buffer() -> ext::task<> {
             const auto bytes = co_await inner.read(
@@ -138,6 +137,8 @@ namespace zipline::io {
             }
         }
     public:
+        Inner& inner;
+
         explicit buffered_reader(Inner& inner) : inner(inner) {}
 
         auto read(std::size_t len) -> ext::task<std::span<const std::byte>> {
@@ -155,7 +156,6 @@ namespace zipline::io {
     template <sink Inner, std::size_t N>
     class buffered_writer final {
         array_buffer<N> buffer;
-        Inner& inner;
 
         auto free() -> ext::task<std::size_t> {
             const auto available = this->capacity() - this->tail;
@@ -193,6 +193,8 @@ namespace zipline::io {
             }
         }
     public:
+        Inner& inner;
+
         explicit buffered_writer(Inner& inner) : inner(inner) {}
 
         auto flush() -> ext::task<> {
@@ -215,24 +217,40 @@ namespace zipline::io {
 
     template <typename Inner, std::size_t BufferSize>
     requires source<Inner> && sink<Inner>
-    class buffered {
-        Inner _inner;
+    struct buffered {
+        Inner inner;
+    private:
         buffered_reader<Inner, BufferSize> reader;
         buffered_writer<Inner, BufferSize> writer;
     public:
-        buffered() = default;
-
-        explicit buffered(Inner&& inner) :
-            _inner(std::forward<Inner>(inner)),
-            reader(_inner),
-            writer(_inner)
+        template <typename... Args>
+        explicit buffered(Args&&... args) :
+            inner(std::forward<Args>(args)...),
+            reader(inner),
+            writer(inner)
         {}
 
+        buffered(const buffered&) = delete;
+
+        buffered(buffered&& other) :
+            inner(std::move(other.inner)),
+            reader(inner),
+            writer(inner)
+        {}
+
+        auto operator=(const buffered&) -> buffered& = delete;
+
+        auto operator=(buffered&& other) -> buffered& {
+            inner = std::move(other.inner);
+
+            reader = std::move(other.reader);
+            reader.inner = inner;
+
+            writer = std::move(other.writer);
+            writer.inner = inner;
+        }
+
         auto flush() -> ext::task<> { co_await writer.flush(); }
-
-        auto inner() noexcept -> Inner& { return _inner; }
-
-        auto into_inner() noexcept -> Inner { return std::move(_inner); }
 
         auto read(std::size_t len) -> ext::task<std::span<const std::byte>> {
             return reader.read(len);
