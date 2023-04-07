@@ -108,10 +108,13 @@ namespace zipline::io {
             auto remaining = len;
 
             if (len >= buffer.capacity()) {
-                if (buffer.size() > 0) {
-                    std::memcpy(dest, buffer.front(), buffer.size());
-                    buffer.bytes_read(buffer.size());
-                    remaining -= buffer.size();
+                if (!buffer.empty()) {
+                    const auto bytes = buffer.size();
+
+                    std::memcpy(dest, buffer.front(), bytes);
+                    buffer.bytes_read(bytes);
+                    remaining -= bytes;
+                    dest += bytes;
                 }
 
                 while (remaining > 0) {
@@ -142,7 +145,7 @@ namespace zipline::io {
         explicit buffered_reader(Inner& inner) : inner(inner) {}
 
         auto read(std::size_t len) -> ext::task<std::span<const std::byte>> {
-            if (buffer.size() < len) co_await fill_buffer();
+            if (buffer.size() < len && !buffer.full()) co_await fill_buffer();
             co_return co_await buffer.read(len);
         }
 
@@ -169,7 +172,6 @@ namespace zipline::io {
             auto remaining = len;
 
             if (len >= buffer.capacity()) {
-                remaining -= buffer.size();
                 co_await flush();
 
                 while (remaining > 0) {
