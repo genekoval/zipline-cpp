@@ -2,6 +2,8 @@
 
 #include "../codable.hpp"
 
+#include <timber/timber>
+
 namespace zipline {
     template <typename F>
     concept stream_reader = requires(
@@ -32,6 +34,13 @@ namespace zipline {
                 remaining -= chunk.size();
 
                 co_await pipe(chunk);
+
+                TIMBER_TRACE(
+                    "stream read {:L} byte{} ({:L} remaining)",
+                    chunk.size(),
+                    chunk.size() == 1 ? "" : "s",
+                    remaining
+                );
             }
         }
 
@@ -39,6 +48,12 @@ namespace zipline {
             if (!chunk.data()) {
                 const auto bytes = co_await size();
                 chunk = co_await reader->get().read(bytes);
+
+                TIMBER_TRACE(
+                    "stream peek {:L} byte{}",
+                    chunk.size(),
+                    chunk.size() == 1 ? "" : "s"
+                );
             }
 
             co_return chunk;
@@ -48,6 +63,12 @@ namespace zipline {
             if (!stream_size) {
                 stream_size = co_await zipline::decode<std::size_t>(
                     reader.value().get()
+                );
+
+                TIMBER_TRACE(
+                    "stream has {:L} byte{}",
+                    *stream_size,
+                    *stream_size == 1 ? "" : "s"
                 );
             }
 
