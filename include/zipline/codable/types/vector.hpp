@@ -3,6 +3,7 @@
 #include "../codable.hpp"
 
 #include <vector>
+#include <timber/timber>
 
 namespace zipline {
     template <typename T, io::reader Reader>
@@ -11,10 +12,13 @@ namespace zipline {
         static auto decode(Reader& reader) -> ext::task<std::vector<T>> {
             const auto size = co_await zipline::decode<std::size_t>(reader);
 
+            TIMBER_TRACE("decode vector({:L})", size);
+
             auto vector = std::vector<T>();
             vector.reserve(size);
 
             for (std::size_t i = 0; i < size; ++i) {
+                TIMBER_TRACE("decode vector[{}]", i);
                 vector.push_back(co_await zipline::decode<T>(reader));
             }
 

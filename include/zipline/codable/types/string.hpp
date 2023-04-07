@@ -2,6 +2,8 @@
 
 #include "../codable.hpp"
 
+#include <timber/timber>
+
 namespace zipline {
     template <io::reader Reader>
     struct decoder<std::string, Reader> {
@@ -10,6 +12,8 @@ namespace zipline {
 
             auto string = std::string(size, '\0');
             co_await reader.read(string.data(), size);
+
+            TIMBER_TRACE("decode string({:L}): {}", size, string);
 
             co_return string;
         }
@@ -32,6 +36,8 @@ namespace zipline {
             Writer& writer
         ) -> ext::task<> {
             const auto size = string.size();
+            TIMBER_TRACE("encode string({:L}): {}", size, string);
+
             co_await zipline::encode(size, writer);
 
             co_await writer.write(string.data(), size);

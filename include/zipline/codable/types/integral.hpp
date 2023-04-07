@@ -2,12 +2,22 @@
 
 #include "../codable.hpp"
 
+#include <timber/timber>
+
 namespace zipline::detail {
     template <std::integral T, io::reader Reader>
     struct decoder {
         static auto decode(Reader& reader) -> ext::task<T> {
             auto result = static_cast<T>(0);
             co_await reader.read(&result, sizeof(T));
+
+            TIMBER_TRACE(
+                "decode {}int{}: {:L}",
+                std::unsigned_integral<T> ? "u" : "",
+                sizeof(T) * 8,
+                result
+            );
+
             co_return result;
         }
     };
@@ -15,6 +25,13 @@ namespace zipline::detail {
     template <std::integral T, io::writer Writer>
     struct encoder {
         static auto encode(T t, Writer& writer) -> ext::task<> {
+            TIMBER_TRACE(
+                "encode {}int{}: {:L}",
+                std::unsigned_integral<T> ? "u" : "",
+                sizeof(T) * 8,
+                t
+            );
+
             co_await writer.write(&t, sizeof(T));
         }
     };

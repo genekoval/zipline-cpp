@@ -35,6 +35,12 @@ namespace zipline {
             Writer& writer
         ) -> ext::task<> {
             const auto has_value = optional.has_value();
+
+            TIMBER_TRACE(
+                "encode optional: {}",
+                has_value ? "has value" : "no value"
+            );
+
             co_await zipline::encode(has_value, writer);
 
             if (has_value) co_await zipline::encode(*optional, writer);

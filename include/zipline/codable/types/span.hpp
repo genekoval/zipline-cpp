@@ -2,6 +2,8 @@
 
 #include "../codable.hpp"
 
+#include <timber/timber>
+
 namespace zipline {
     template <typename T, io::writer Writer>
     requires encodable<T, Writer>
@@ -10,10 +12,14 @@ namespace zipline {
             std::span<const T> span,
             Writer& writer
         ) -> ext::task<> {
+            const auto size = span.size();
+            TIMBER_TRACE("encode span({:L})", size);
+
             co_await zipline::encode(span.size(), writer);
 
-            for (const auto& item : span) {
-                co_await zipline::encode(item, writer);
+            for (std::size_t i = 0; i < size; ++i) {
+                TIMBER_TRACE("encode span[{}]", i);
+                co_await zipline::encode(span[i], writer);
             }
         }
     };
@@ -25,8 +31,9 @@ namespace zipline {
             Writer& writer
         ) -> ext::task<> {
             const auto size = bytes.size();
-            co_await zipline::encode(bytes.size(), writer);
+            TIMBER_TRACE("encode bytes({:L})", size);
 
+            co_await zipline::encode(size, writer);
             co_await writer.write(bytes.data(), size);
         }
     };
