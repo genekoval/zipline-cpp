@@ -7,6 +7,11 @@
 #include <timber/timber>
 
 namespace zipline {
+    template <typename Context>
+    concept router_context = requires(Context ctx, std::chrono::seconds sec) {
+        { ctx.set_timer(sec) } -> std::same_as<ext::task<>>;
+    };
+
     template <
         typename Socket,
         typename EventT,
@@ -15,7 +20,8 @@ namespace zipline {
     >
     requires
         io::reader<Socket> && io::writer<Socket> &&
-        std::unsigned_integral<EventT> && decodable<EventT, Socket>
+        std::unsigned_integral<EventT> && decodable<EventT, Socket> &&
+        router_context<Context>
     class router {
         using protocol = server_protocol<Context, Socket>;
         using route_storage = std::tuple<Routes...>;
@@ -23,6 +29,7 @@ namespace zipline {
             const std::tuple<Routes...>&,
             protocol&
         ) -> ext::task<>;
+        using seconds = std::chrono::seconds;
 
         Context ctx;
         const error_codes& errors;
@@ -39,31 +46,47 @@ namespace zipline {
             }), ...);
         }
 
-        auto route_one(protocol& proto) -> ext::task<bool> {
+        auto route_one(protocol& proto, seconds timeout) -> ext::task<bool> {
             auto event = EventT();
             route_type route = nullptr;
+            auto read_event = proto.template read<EventT>();
+
+            if (timeout > seconds::zero()) {
+                auto result = co_await ext::race(
+                    std::move(read_event),
+                    ctx.set_timer(timeout)
+                );
+
+                if (result.index() == 1) {
+                    co_await std::get<1>(std::move(result));
+                    TIMBER_DEBUG("Client connection idle timeout reached");
+                    co_return false;
+                }
+
+                read_event = std::get<0>(std::move(result));
+            }
 
             try {
-                event = co_await proto.template read<EventT>();
+                event = co_await std::exchange(read_event, {});
             }
             catch (const eof&) {
-                TIMBER_DEBUG("client closed connection");
+                TIMBER_DEBUG("Client closed connection");
                 co_return false;
             }
 
-            TIMBER_DEBUG("received event: {}", event);
+            TIMBER_DEBUG("Received event: {}", event);
 
             try {
                 route = routes.at(event);
             }
             catch (const std::out_of_range&) {
-                TIMBER_ERROR("unknown event received: {}", event);
+                TIMBER_ERROR("Unknown event received: {}", event);
                 co_return false;
             }
 
             co_await route(storage, proto);
-            TIMBER_DEBUG("event handled: {}", event);
 
+            TIMBER_DEBUG("Event handled: {}", event);
             co_return true;
         }
     public:
@@ -80,16 +103,22 @@ namespace zipline {
             );
         }
 
-        auto route(Socket& sock) -> ext::task<> {
+        auto route(
+            Socket& sock,
+            seconds timeout = seconds::zero()
+        ) -> ext::task<> {
             auto proto = protocol(ctx, errors, sock);
             auto run = true;
 
-            while (run) run = co_await route_one(proto);
+            while (run) run = co_await route_one(proto, timeout);
         }
 
-        auto route_one(Socket& sock) -> ext::task<> {
+        auto route_one(
+            Socket& sock,
+            seconds timeout = seconds::zero()
+        ) -> ext::task<> {
             auto proto = protocol(ctx, errors, sock);
-            co_await route_one(proto);
+            co_await route_one(proto, timeout);
         }
     };
 }

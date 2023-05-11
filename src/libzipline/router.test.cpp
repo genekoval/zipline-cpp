@@ -5,6 +5,8 @@
 
 using namespace std::literals;
 
+using std::chrono::seconds;
+
 using zipline::test::buffer_type;
 
 namespace {
@@ -25,6 +27,10 @@ namespace {
         auto set_default() -> ext::task<> {
             storage = "default";
             co_return;
+        }
+
+        auto set_timer(seconds duration) -> ext::task<> {
+            co_return; // Currently unsupported.
         }
     };
 
@@ -67,7 +73,7 @@ namespace {
     using client_type = zipline::client<buffer_type&, event>;
 }
 
-class RouterTest : public SocketTestBase {
+class Router : public SocketTestBase {
 protected:
     std::string storage;
 
@@ -83,8 +89,8 @@ protected:
     }
 };
 
-TEST_F(RouterTest, MemberRoute) {
-    [this]() -> ext::detached_task {
+TEST_F(Router, MemberRoute) {
+    [this]() -> ext::jtask<> {
         constexpr auto world = "world"sv;
         co_await client.start(event::greet, world);
         co_await route();
@@ -101,5 +107,5 @@ TEST_F(RouterTest, MemberRoute) {
         co_await route();
         co_await client.read_response();
         EXPECT_EQ("default"sv, storage);
-    }();
+    }().result();
 }
