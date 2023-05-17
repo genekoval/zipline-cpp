@@ -11,7 +11,7 @@ $(library).libs := fmt timber
 install := $(library)
 targets := $(install)
 
-test.libs = $(name) ext++ fmt gtest gmock pthread timber
+test.libs = $(name) ext++ fmt gtest gmock netcore pthread timber
 test.deps = $(library)
 
 install.directories = $(include)/$(name)

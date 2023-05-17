@@ -1,14 +1,6 @@
 #include <zipline/error.hpp>
 
 namespace zipline {
-    auto eof::what() const noexcept -> const char* {
-        return "unexpected EOF";
-    }
-
-    auto insufficient_space::what() const noexcept -> const char* {
-        return "insufficient space";
-    }
-
     auto internal_error::what() const noexcept -> const char* {
         return "internal error";
     }

@@ -1,10 +1,10 @@
 #include "socket.test.hpp"
 
 using zipline::error_list;
-using zipline::test::buffer_type;
+using zipline::test::buffer;
 
-using abstract_reader = zipline::io::abstract_reader_wrapper<buffer_type>;
-using abstract_writer = zipline::io::abstract_writer_wrapper<buffer_type>;
+using abstract_reader = zipline::io::abstract_reader_wrapper<buffer>;
+using abstract_writer = zipline::io::abstract_writer_wrapper<buffer>;
 
 using namespace std::literals;
 

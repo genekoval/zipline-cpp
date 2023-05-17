@@ -45,6 +45,10 @@ namespace zipline {
             inner(inner)
         {}
 
+        auto fill_buffer() -> ext::task<bool> {
+            return inner.fill_buffer();
+        }
+
         template <typename T>
         requires decodable<T, Inner>
         auto read() const {

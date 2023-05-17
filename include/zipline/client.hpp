@@ -1,7 +1,7 @@
 #pragma once
 
+#include "io/io.hpp"
 #include "response.hpp"
-#include "io/io"
 
 #include <span>
 
@@ -23,6 +23,10 @@ namespace zipline {
             errors(errors),
             inner(std::forward<Args>(args)...)
         {}
+
+        auto fill_buffer() -> ext::task<bool> {
+            return inner.fill_buffer();
+        }
 
         auto flush() -> ext::task<> {
             return inner.flush();

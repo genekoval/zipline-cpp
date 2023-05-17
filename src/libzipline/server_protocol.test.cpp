@@ -2,7 +2,7 @@
 
 #include <cstring>
 
-using zipline::test::buffer_type;
+using zipline::test::buffer;
 
 namespace {
     using namespace std::literals;
@@ -65,9 +65,9 @@ namespace {
         }
     };
 
-    using client = zipline::client<buffer_type, int>;
+    using client = zipline::client<buffer, int>;
 
-    using protocol = zipline::server_protocol<test_context, buffer_type>;
+    using protocol = zipline::server_protocol<test_context, buffer>;
 }
 
 namespace zipline {
@@ -94,7 +94,7 @@ protected:
     const zipline::error_thrower& thrower = error_list::thrower();
     test_context context;
     protocol proto = protocol(context, codes, buffer);
-    zipline::client<buffer_type&, int> client = {thrower, buffer};
+    zipline::client<zipline::test::buffer&, int> client = {thrower, buffer};
 };
 
 TEST_F(ServerProtocolTest, UseWithReturn) {

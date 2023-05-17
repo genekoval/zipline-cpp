@@ -1,7 +1,5 @@
 #include "coder.test.hpp"
 
-using zipline::test::buffer_type;
-
 namespace {
     enum class data : std::uint32_t {
         foo,

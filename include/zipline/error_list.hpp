@@ -50,9 +50,9 @@ namespace zipline {
         ) const -> ext::task<>;
     };
 
-    template <typename ...Errors>
+    template <typename... Errors>
     requires
-        (std::is_base_of_v<zipline_error, Errors>, ...) ||
+        (std::derived_from<Errors, zipline_error> && ...) ||
         (sizeof...(Errors) == 0)
     class error_list {
         using errors = std::tuple<Errors...>;

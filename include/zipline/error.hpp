@@ -7,14 +7,6 @@
 namespace zipline {
     using status_type = std::uint8_t;
 
-    struct eof : std::exception {
-        auto what() const noexcept -> const char* override;
-    };
-
-    struct insufficient_space : std::exception {
-        auto what() const noexcept -> const char* override;
-    };
-
     struct internal_error : std::exception {
         auto what() const noexcept -> const char* override;
     };
@@ -52,8 +44,7 @@ namespace zipline {
         virtual auto encode(io::abstract_writer& writer) const -> ext::task<>;
     };
 
-    template <typename T>
-    requires std::is_base_of_v<zipline_error, T>
+    template <std::derived_from<zipline_error> T>
     struct decoder<T, io::abstract_reader> {
         static auto decode(
             io::abstract_reader& reader

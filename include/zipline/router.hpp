@@ -47,13 +47,11 @@ namespace zipline {
         }
 
         auto route_one(protocol& proto, seconds timeout) -> ext::task<bool> {
-            auto event = EventT();
-            route_type route = nullptr;
-            auto read_event = proto.template read<EventT>();
+            auto fill_buffer = proto.fill_buffer();
 
             if (timeout > seconds::zero()) {
                 auto result = co_await ext::race(
-                    std::move(read_event),
+                    std::move(fill_buffer),
                     ctx.set_timer(timeout)
                 );
 
@@ -63,19 +61,18 @@ namespace zipline {
                     co_return false;
                 }
 
-                read_event = std::get<0>(std::move(result));
+                fill_buffer = std::get<0>(std::move(result));
             }
 
-            try {
-                event = co_await std::exchange(read_event, {});
-            }
-            catch (const eof&) {
-                TIMBER_DEBUG("Client closed connection");
+            if (!co_await std::exchange(fill_buffer, {})) {
+                TIMBER_DEBUG("Client disconnected");
                 co_return false;
             }
 
+            const auto event = co_await proto.template read<EventT>();
             TIMBER_DEBUG("Received event: {}", event);
 
+            route_type route = nullptr;
             try {
                 route = routes.at(event);
             }

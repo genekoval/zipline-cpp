@@ -7,7 +7,7 @@ using namespace std::literals;
 
 using std::chrono::seconds;
 
-using zipline::test::buffer_type;
+using zipline::test::buffer;
 
 namespace {
     struct context {
@@ -44,7 +44,7 @@ namespace {
         template <typename... Routes>
         auto make_router(context&& ctx, Routes&&... routes) {
             return zipline::router<
-                buffer_type,
+                buffer,
                 std::underlying_type_t<event>,
                 context,
                 Routes...
@@ -70,7 +70,7 @@ namespace {
         std::string&
     >;
 
-    using client_type = zipline::client<buffer_type&, event>;
+    using client_type = zipline::client<buffer&, event>;
 }
 
 class Router : public SocketTestBase {
