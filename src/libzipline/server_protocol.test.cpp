@@ -79,7 +79,7 @@ namespace zipline {
             const auto n = co_await zipline::decode<int>(reader);
             const auto message = co_await zipline::decode<std::string>(reader);
 
-            co_return custom_error(n, message);
+            throw custom_error(n, message);
         }
     };
 }

@@ -79,7 +79,7 @@ namespace zipline {
             auto throwers = thrower_list(new thrower[size()]);
 
             ((throwers[I] = [](io::abstract_reader& reader) -> ext::task<> {
-                throw co_await zipline::decode<error_type<I>>(reader);
+                co_await zipline::decode<error_type<I>>(reader);
             }), ...);
 
             return error_thrower(std::move(throwers), size());

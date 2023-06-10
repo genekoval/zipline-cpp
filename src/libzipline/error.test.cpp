@@ -40,7 +40,7 @@ namespace zipline {
         static auto decode(
             io::abstract_reader& reader
         ) -> ext::task<custom_error_1> {
-            co_return custom_error_1();
+            throw custom_error_1();
         }
     };
 
@@ -49,7 +49,7 @@ namespace zipline {
         static auto decode(
             io::abstract_reader& reader
         ) -> ext::task<custom_error_2> {
-            co_return custom_error_2();
+            throw custom_error_2();
         }
     };
 }

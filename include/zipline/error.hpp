@@ -50,7 +50,7 @@ namespace zipline {
             io::abstract_reader& reader
         ) -> ext::task<T> {
             const auto message = co_await zipline::decode<std::string>(reader);
-            co_return T{message};
+            throw T{message};
         }
     };
 
