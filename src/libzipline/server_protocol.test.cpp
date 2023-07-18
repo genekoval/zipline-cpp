@@ -3,15 +3,16 @@
 #include <cstring>
 
 using zipline::test::buffer;
+using zipline::zipline_error;
 
 namespace {
     using namespace std::literals;
 
-    class custom_error : public zipline::zipline_error {
+    class custom_error : public zipline_error {
         int n;
     public:
-        custom_error(int n, std::string message) :
-            zipline::zipline_error(message),
+        custom_error(int n, const std::string& message) :
+            runtime_error(message),
             n(n)
         {}
 

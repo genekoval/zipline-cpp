@@ -2,6 +2,7 @@
 
 using zipline::error_list;
 using zipline::test::buffer;
+using zipline::zipline_error;
 
 using abstract_reader = zipline::io::abstract_reader_wrapper<buffer>;
 using abstract_writer = zipline::io::abstract_writer_wrapper<buffer>;
@@ -9,28 +10,12 @@ using abstract_writer = zipline::io::abstract_writer_wrapper<buffer>;
 using namespace std::literals;
 
 namespace {
-    struct basic_error : zipline::zipline_error {
-        using zipline_error::zipline_error;
+    struct custom_error_1 : zipline_error {
+        custom_error_1() : runtime_error("custom error 1") {}
     };
 
-    struct custom_error : zipline::zipline_error {
-        custom_error(int n) : zipline::zipline_error(
-            fmt::format("custom error {}", n)
-        ) {}
-
-        auto encode(
-            zipline::io::abstract_writer& wrtier
-        ) const -> ext::task<> override {
-            co_return;
-        }
-    };
-
-    struct custom_error_1 : custom_error {
-        custom_error_1() : custom_error(1) {}
-    };
-
-    struct custom_error_2 : custom_error {
-        custom_error_2() : custom_error(2) {}
+    struct custom_error_2 : zipline_error {
+        custom_error_2() : runtime_error("custom error 2") {}
     };
 }
 
@@ -65,15 +50,15 @@ TEST_F(ErrorTest, EmptyList) {
 }
 
 TEST_F(ErrorTest, OneError) {
-    using errors = error_list<basic_error>;
+    using errors = error_list<zipline_error>;
 
-    constexpr auto message = "basic error test"sv;
+    const auto message = "basic error test"s;
 
     ASSERT_EQ(1, errors::size());
 
     const auto& codes = errors::codes();
 
-    const auto ex = basic_error(message);
+    const auto ex = zipline_error(message);
     ASSERT_EQ(0, codes.code(ex));
 
     const auto& thrower = errors::thrower();
@@ -85,7 +70,7 @@ TEST_F(ErrorTest, OneError) {
         try {
             co_await thrower.throw_error(0, reader);
         }
-        catch (const basic_error& ex) {
+        catch (const zipline_error& ex) {
             thrown = true;
             EXPECT_EQ(message, ex.what());
         }

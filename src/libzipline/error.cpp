@@ -9,6 +9,12 @@ namespace zipline {
         std::runtime_error(fmt::format("unknown error code ({})", status))
     {}
 
+    zipline_error::zipline_error() : std::runtime_error("zipline error") {}
+
+    zipline_error::zipline_error(const std::string& what) :
+        std::runtime_error(what)
+    {}
+
     auto zipline_error::encode(
         io::abstract_writer& writer
     ) const -> ext::task<> {

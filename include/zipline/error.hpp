@@ -15,29 +15,10 @@ namespace zipline {
         unknown_code(status_type status);
     };
 
-    class zipline_error : public std::runtime_error {
-        template <typename... Args>
-        static auto make_what(
-            std::string_view format_string,
-            Args&&... args
-        ) -> std::string {
-            if constexpr (sizeof...(args) == 0) {
-                return std::string(format_string);
-            }
+    struct zipline_error : virtual std::runtime_error {
+        zipline_error();
 
-            return fmt::format(
-                fmt::runtime(format_string),
-                std::forward<Args>(args)...
-            );
-        }
-    public:
-        template <typename... Args>
-        zipline_error(std::string_view format_string, Args&&... args) :
-            std::runtime_error(make_what(
-                format_string,
-                std::forward<Args>(args)...
-            ))
-        {}
+        zipline_error(const std::string& what);
 
         virtual ~zipline_error() = default;
 
