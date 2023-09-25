@@ -13,7 +13,9 @@ namespace zipline::io {
 
     template <typename T>
     concept writer = requires(T& t, const void* src, std::size_t len) {
+        { t.await_write() } -> std::same_as<ext::task<>>;
         { t.flush() } -> std::same_as<ext::task<>>;
+        { t.try_write(src, len) } -> std::convertible_to<std::size_t>;
         { t.write(src, len) } -> std::same_as<ext::task<>>;
     };
 
@@ -29,7 +31,14 @@ namespace zipline::io {
     static_assert(reader<abstract_reader>);
 
     struct abstract_writer {
+        virtual auto await_write() -> ext::task<> = 0;
+
         virtual auto flush() -> ext::task<> = 0;
+
+        virtual auto try_write(
+            const void* src,
+            std::size_t len
+        ) -> std::size_t = 0;
 
         virtual auto write(const void* src, std::size_t len) -> ext::task<> = 0;
     };
@@ -65,8 +74,19 @@ namespace zipline::io {
     public:
         abstract_writer_wrapper(Writer& inner) : inner(inner) {}
 
+        auto await_write() -> ext::task<> override {
+            return inner.await_write();
+        }
+
         auto flush() -> ext::task<> override {
             return inner.flush();
+        }
+
+        auto try_write(
+            const void* src,
+            std::size_t len
+        ) -> std::size_t override {
+            return inner.try_write(src, len);
         }
 
         auto write(

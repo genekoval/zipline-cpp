@@ -3,6 +3,10 @@
 namespace zipline::test {
     buffer::buffer() : storage(1024) {}
 
+    auto buffer::await_write() -> ext::task<> {
+        co_return;
+    }
+
     auto buffer::empty() const noexcept -> bool {
         return storage.empty();
     }
@@ -24,6 +28,11 @@ namespace zipline::test {
     auto buffer::read(void* dest, std::size_t len) -> ext::task<> {
         storage.read(dest, len);
         co_return;
+    }
+
+    auto buffer::try_write(const void* src, std::size_t len) -> std::size_t {
+        storage.write(src, len);
+        return len;
     }
 
     auto buffer::write(const void* src, std::size_t len) -> ext::task<> {

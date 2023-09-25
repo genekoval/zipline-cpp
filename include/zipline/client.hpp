@@ -24,6 +24,10 @@ namespace zipline {
             inner(std::forward<Args>(args)...)
         {}
 
+        auto await_write() -> ext::task<> {
+            return inner.await_write();
+        }
+
         auto fill_buffer() -> ext::task<bool> {
             return inner.fill_buffer();
         }
@@ -38,10 +42,6 @@ namespace zipline {
 
         auto read(void* dest, std::size_t len) -> ext::task<> {
             return inner.read(dest, len);
-        }
-
-        auto write(const void* src, std::size_t len) -> ext::task<> {
-            return inner.write(src, len);
         }
 
         template <typename T>
@@ -67,6 +67,14 @@ namespace zipline {
         template <typename... T>
         auto start(EventT event, const T&... args) -> ext::task<> {
             co_await write_all(event, args...);
+        }
+
+        auto try_write(const void* src, std::size_t len) -> std::size_t {
+            return inner.try_write(src, len);
+        }
+
+        auto write(const void* src, std::size_t len) -> ext::task<> {
+            return inner.write(src, len);
         }
 
         template <typename ...T>
