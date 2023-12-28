@@ -34,11 +34,7 @@ namespace {
         }
     };
 
-    enum class event : std::uint16_t {
-        greet,
-        save,
-        set_default
-    };
+    enum class event : std::uint16_t { greet, save, set_default };
 
     namespace detail {
         template <typename... Routes>
@@ -47,8 +43,7 @@ namespace {
                 buffer,
                 std::underlying_type_t<event>,
                 context,
-                Routes...
-            >(
+                Routes...>(
                 std::forward<context>(ctx),
                 zipline::error_list<>::codes(),
                 std::forward<Routes>(routes)...
@@ -65,10 +60,8 @@ namespace {
         );
     }
 
-    using router_type = std::invoke_result_t<
-        decltype(make_router),
-        std::string&
-    >;
+    using router_type =
+        std::invoke_result_t<decltype(make_router), std::string&>;
 
     using client_type = zipline::client<buffer&, event>;
 }
@@ -79,14 +72,9 @@ protected:
 
     router_type router = make_router(storage);
 
-    client_type client = client_type(
-        zipline::error_list<>::thrower(),
-        buffer
-    );
+    client_type client = client_type(zipline::error_list<>::thrower(), buffer);
 
-    auto route() -> ext::task<> {
-        return router.route_one(buffer);
-    }
+    auto route() -> ext::task<> { return router.route_one(buffer); }
 };
 
 TEST_F(Router, MemberRoute) {
@@ -107,5 +95,6 @@ TEST_F(Router, MemberRoute) {
         co_await route();
         co_await client.read_response();
         EXPECT_EQ("default"sv, storage);
-    }().result();
+    }()
+                    .result();
 }

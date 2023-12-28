@@ -17,10 +17,8 @@ namespace zipline {
     template <typename T1, typename T2, io::writer Writer>
     requires encodable<T1, Writer> && encodable<T2, Writer>
     struct encoder<std::pair<T1, T2>, Writer> {
-        static auto encode(
-            const std::pair<T1, T2>& pair,
-            Writer& writer
-        ) -> ext::task<> {
+        static auto encode(const std::pair<T1, T2>& pair, Writer& writer)
+            -> ext::task<> {
             co_await zipline::encode(std::get<0>(pair), writer);
             co_await zipline::encode(std::get<1>(pair), writer);
         }

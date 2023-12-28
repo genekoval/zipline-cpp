@@ -13,16 +13,12 @@ namespace {
     public:
         custom_error(int n, const std::string& message) :
             runtime_error(message),
-            n(n)
-        {}
+            n(n) {}
 
-        auto number() const -> int {
-            return n;
-        }
+        auto number() const -> int { return n; }
 
-        auto encode(
-            zipline::io::abstract_writer& writer
-        ) const -> ext::task<> override {
+        auto encode(zipline::io::abstract_writer& writer) const
+            -> ext::task<> override {
             co_await zipline::encode(number(), writer);
             co_await zipline::encode(what(), writer);
         }
@@ -39,27 +35,19 @@ namespace {
     struct test_context {
         std::string result;
 
-        auto multiply_by_two(
-            std::int32_t a,
-            std::int32_t b,
-            std::int32_t c
-        ) -> ext::task<std::vector<std::int32_t>> {
-            co_return std::vector { a * 2, b * 2, c * 2 };
+        auto multiply_by_two(std::int32_t a, std::int32_t b, std::int32_t c)
+            -> ext::task<std::vector<std::int32_t>> {
+            co_return std::vector {a * 2, b * 2, c * 2};
         }
 
-        auto concat(
-            std::string str,
-            std::int32_t i
-        ) -> ext::task<> {
+        auto concat(std::string str, std::int32_t i) -> ext::task<> {
             result.append(str);
             result.append(std::to_string(i));
 
             co_return;
         }
 
-        auto throw_error() -> ext::task<> {
-            throw unregistered_error();
-        }
+        auto throw_error() -> ext::task<> { throw unregistered_error(); }
 
         auto throw_custom_error(std::string what) -> ext::task<> {
             throw custom_error(number, what);
@@ -74,9 +62,8 @@ namespace {
 namespace zipline {
     template <>
     struct decoder<custom_error, io::abstract_reader> {
-        static auto decode(
-            io::abstract_reader& reader
-        ) -> ext::task<custom_error> {
+        static auto decode(io::abstract_reader& reader)
+            -> ext::task<custom_error> {
             const auto n = co_await zipline::decode<int>(reader);
             const auto message = co_await zipline::decode<std::string>(reader);
 
@@ -100,8 +87,8 @@ protected:
 
 TEST_F(ServerProtocolTest, UseWithReturn) {
     [this]() -> ext::detached_task {
-        const auto numbers = std::vector<std::int32_t> { 1, 2, 3 };
-        const auto expected = std::vector<std::int32_t> { 2, 4, 6 };
+        const auto numbers = std::vector<std::int32_t> {1, 2, 3};
+        const auto expected = std::vector<std::int32_t> {2, 4, 6};
 
         for (const std::int32_t n : numbers) co_await client.write_all(n);
 

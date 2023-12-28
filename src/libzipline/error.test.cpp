@@ -22,18 +22,16 @@ namespace {
 namespace zipline {
     template <>
     struct decoder<custom_error_1, io::abstract_reader> {
-        static auto decode(
-            io::abstract_reader& reader
-        ) -> ext::task<custom_error_1> {
+        static auto decode(io::abstract_reader& reader)
+            -> ext::task<custom_error_1> {
             throw custom_error_1();
         }
     };
 
     template <>
     struct decoder<custom_error_2, io::abstract_reader> {
-        static auto decode(
-            io::abstract_reader& reader
-        ) -> ext::task<custom_error_2> {
+        static auto decode(io::abstract_reader& reader)
+            -> ext::task<custom_error_2> {
             throw custom_error_2();
         }
     };
@@ -45,9 +43,7 @@ protected:
     abstract_writer writer = buffer;
 };
 
-TEST_F(ErrorTest, EmptyList) {
-    ASSERT_EQ(0, error_list<>::size());
-}
+TEST_F(ErrorTest, EmptyList) { ASSERT_EQ(0, error_list<>::size()); }
 
 TEST_F(ErrorTest, OneError) {
     using errors = error_list<zipline_error>;
@@ -80,10 +76,7 @@ TEST_F(ErrorTest, OneError) {
 }
 
 TEST_F(ErrorTest, MultipleErrors) {
-    using errors = error_list<
-        custom_error_1,
-        custom_error_2
-    >;
+    using errors = error_list<custom_error_1, custom_error_2>;
 
     ASSERT_EQ(2, errors::size());
 

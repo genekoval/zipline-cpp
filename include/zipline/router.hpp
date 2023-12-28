@@ -16,19 +16,15 @@ namespace zipline {
         typename Socket,
         typename EventT,
         typename Context,
-        typename ...Routes
-    >
-    requires
-        io::reader<Socket> && io::writer<Socket> &&
-        std::unsigned_integral<EventT> && decodable<EventT, Socket> &&
-        router_context<Context>
+        typename... Routes>
+    requires io::reader<Socket> && io::writer<Socket> &&
+             std::unsigned_integral<EventT> && decodable<EventT, Socket> &&
+             router_context<Context>
     class router {
         using protocol = server_protocol<Context, Socket>;
         using route_storage = std::tuple<Routes...>;
-        using route_type = auto (*)(
-            const std::tuple<Routes...>&,
-            protocol&
-        ) -> ext::task<>;
+        using route_type = auto (*)(const std::tuple<Routes...>&, protocol&)
+            -> ext::task<>;
         using seconds = std::chrono::seconds;
 
         Context ctx;
@@ -36,14 +32,11 @@ namespace zipline {
         std::array<route_type, sizeof...(Routes)> routes;
         route_storage storage;
 
-        template <std::size_t ...I>
+        template <std::size_t... I>
         auto initialize(std::index_sequence<I...>) -> void {
-            ((routes[I] = [](
-                const route_storage& storage,
-                protocol& proto
-            ) -> ext::task<> {
-                co_await proto.use(std::get<I>(storage));
-            }), ...);
+            ((routes[I] = [](const route_storage& storage, protocol& proto)
+                  -> ext::task<> { co_await proto.use(std::get<I>(storage)); }),
+             ...);
         }
 
         auto route_one(protocol& proto, seconds timeout) -> ext::task<bool> {
@@ -90,8 +83,7 @@ namespace zipline {
         router(Context&& ctx, const error_codes& errors, Routes&&... r) :
             ctx(std::forward<Context>(ctx)),
             errors(errors),
-            storage(std::forward<Routes>(r)...)
-        {
+            storage(std::forward<Routes>(r)...) {
             initialize(std::index_sequence_for<Routes...>());
 
             TIMBER_TRACE(
@@ -100,20 +92,16 @@ namespace zipline {
             );
         }
 
-        auto route(
-            Socket& sock,
-            seconds timeout = seconds::zero()
-        ) -> ext::task<> {
+        auto route(Socket& sock, seconds timeout = seconds::zero())
+            -> ext::task<> {
             auto proto = protocol(ctx, errors, sock);
             auto run = true;
 
             while (run) run = co_await route_one(proto, timeout);
         }
 
-        auto route_one(
-            Socket& sock,
-            seconds timeout = seconds::zero()
-        ) -> ext::task<> {
+        auto route_one(Socket& sock, seconds timeout = seconds::zero())
+            -> ext::task<> {
             auto proto = protocol(ctx, errors, sock);
             co_await route_one(proto, timeout);
         }

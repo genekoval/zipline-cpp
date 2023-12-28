@@ -14,17 +14,16 @@ namespace zipline {
         const error_codes& errors;
         Inner& inner;
 
-        template <typename Args, std::size_t ...I>
-        auto read_arg_sequence(
-            Args& tuple,
-            std::index_sequence<I...>
-        ) const -> ext::task<> {
+        template <typename Args, std::size_t... I>
+        auto read_arg_sequence(Args& tuple, std::index_sequence<I...>) const
+            -> ext::task<> {
             ((std::get<I>(tuple) =
-                co_await zipline::decode<std::tuple_element_t<I, Args>>(inner)
-            ),...);
+                  co_await zipline::decode<std::tuple_element_t<I, Args>>(inner)
+             ),
+             ...);
         }
 
-        template <typename ...Args>
+        template <typename... Args>
         auto read_args() const -> ext::task<std::tuple<context_ref, Args...>> {
             auto args = std::tuple<Args...>();
             co_await read_arg_sequence(
@@ -42,12 +41,9 @@ namespace zipline {
         ) :
             context(std::make_tuple(std::ref(context))),
             errors(errors),
-            inner(inner)
-        {}
+            inner(inner) {}
 
-        auto fill_buffer() -> ext::task<bool> {
-            return inner.fill_buffer();
-        }
+        auto fill_buffer() -> ext::task<bool> { return inner.fill_buffer(); }
 
         template <typename T>
         requires decodable<T, Inner>
@@ -55,10 +51,9 @@ namespace zipline {
             return zipline::decode<T>(inner);
         }
 
-        template <typename R, typename ...Args>
-        auto use(
-            ext::task<R> (Context::* callable)(Args...)
-        ) const -> ext::task<> {
+        template <typename R, typename... Args>
+        auto use(ext::task<R> (Context::*callable)(Args...)) const
+            -> ext::task<> {
             const auto res = responder<R, Inner>(errors, inner);
             auto args = co_await read_args<Args...>();
 

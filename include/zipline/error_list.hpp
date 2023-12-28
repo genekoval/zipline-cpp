@@ -1,7 +1,7 @@
 #pragma once
 
-#include "error.hpp"
 #include "codable/codable"
+#include "error.hpp"
 
 #include <optional>
 #include <typeindex>
@@ -44,16 +44,13 @@ namespace zipline {
 
         auto operator=(error_thrower&&) -> error_thrower& = delete;
 
-        auto throw_error(
-            status_type status,
-            io::abstract_reader& reader
-        ) const -> ext::task<>;
+        auto throw_error(status_type status, io::abstract_reader& reader) const
+            -> ext::task<>;
     };
 
     template <typename... Errors>
-    requires
-        (std::derived_from<Errors, zipline_error> && ...) ||
-        (sizeof...(Errors) == 0)
+    requires(std::derived_from<Errors, zipline_error> && ...) ||
+            (sizeof...(Errors) == 0)
     class error_list {
         using errors = std::tuple<Errors...>;
 
@@ -70,17 +67,16 @@ namespace zipline {
         }
 
         template <std::size_t... I>
-        static auto make_thrower(
-            std::index_sequence<I...>
-        ) -> error_thrower {
+        static auto make_thrower(std::index_sequence<I...>) -> error_thrower {
             using thrower = typename error_thrower::thrower;
             using thrower_list = typename error_thrower::thrower_list;
 
             auto throwers = thrower_list(new thrower[size()]);
 
             ((throwers[I] = [](io::abstract_reader& reader) -> ext::task<> {
-                throw co_await zipline::decode<error_type<I>>(reader);
-            }), ...);
+                 throw co_await zipline::decode<error_type<I>>(reader);
+             }),
+             ...);
 
             return error_thrower(std::move(throwers), size());
         }

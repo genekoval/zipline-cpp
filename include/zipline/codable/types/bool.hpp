@@ -23,10 +23,7 @@ namespace zipline {
             throw std::system_error(
                 EINVAL,
                 std::generic_category(),
-                fmt::format(
-                    "invalid bit pattern for boolean type: {}",
-                    value
-                )
+                fmt::format("invalid bit pattern for boolean type: {}", value)
             );
         }
     };

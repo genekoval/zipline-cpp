@@ -12,10 +12,8 @@ namespace zipline {
 
     template <typename Writer>
     struct encoder<std::size_t, Writer> {
-        static auto encode(
-            Writer& writer,
-            std::size_t size
-        ) -> ext::task<std::size_t> {
+        static auto encode(Writer& writer, std::size_t size)
+            -> ext::task<std::size_t> {
             co_await zipline::encode<std::uint64_t>(size, writer);
         }
     };

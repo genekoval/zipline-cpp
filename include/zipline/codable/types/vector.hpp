@@ -2,8 +2,8 @@
 
 #include "../codable.hpp"
 
-#include <vector>
 #include <timber/timber>
+#include <vector>
 
 namespace zipline {
     template <typename T, io::reader Reader>
@@ -29,10 +29,8 @@ namespace zipline {
     template <typename T, io::writer Writer>
     requires encodable<T, Writer>
     struct encoder<std::vector<T>, Writer> {
-        static auto encode(
-            const std::vector<T>& vector,
-            Writer& writer
-        ) -> ext::task<> {
+        static auto encode(const std::vector<T>& vector, Writer& writer)
+            -> ext::task<> {
             co_await zipline::encode<std::span<const T>>(vector, writer);
         }
     };

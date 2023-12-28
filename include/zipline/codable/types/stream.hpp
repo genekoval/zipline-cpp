@@ -6,12 +6,10 @@
 
 namespace zipline {
     template <typename F>
-    concept stream_reader = requires(
-        const F& f,
-        std::span<const std::byte> bytes
-    ) {
-        { f(bytes) } -> std::same_as<ext::task<>>;
-    };
+    concept stream_reader =
+        requires(const F& f, std::span<const std::byte> bytes) {
+            { f(bytes) } -> std::same_as<ext::task<>>;
+        };
 
     template <io::reader Reader>
     class stream {
@@ -61,9 +59,8 @@ namespace zipline {
 
         auto size() -> ext::task<std::size_t> {
             if (!stream_size) {
-                stream_size = co_await zipline::decode<std::size_t>(
-                    reader.value().get()
-                );
+                stream_size =
+                    co_await zipline::decode<std::size_t>(reader.value().get());
 
                 TIMBER_TRACE(
                     "stream has {:L} byte{}",

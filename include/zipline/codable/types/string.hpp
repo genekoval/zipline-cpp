@@ -21,20 +21,16 @@ namespace zipline {
 
     template <io::writer Writer>
     struct encoder<std::string, Writer> {
-        static auto encode(
-            const std::string& string,
-            Writer& writer
-        ) -> ext::task<> {
+        static auto encode(const std::string& string, Writer& writer)
+            -> ext::task<> {
             co_await zipline::encode<std::string_view>(string, writer);
         }
     };
 
     template <io::writer Writer>
     struct encoder<std::string_view, Writer> {
-        static auto encode(
-            std::string_view string,
-            Writer& writer
-        ) -> ext::task<> {
+        static auto encode(std::string_view string, Writer& writer)
+            -> ext::task<> {
             const auto size = string.size();
             TIMBER_TRACE("encode string({:L}): {}", size, string);
 

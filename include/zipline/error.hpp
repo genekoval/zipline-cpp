@@ -27,11 +27,9 @@ namespace zipline {
 
     template <std::derived_from<zipline_error> T>
     struct decoder<T, io::abstract_reader> {
-        static auto decode(
-            io::abstract_reader& reader
-        ) -> ext::task<T> {
+        static auto decode(io::abstract_reader& reader) -> ext::task<T> {
             const auto message = co_await zipline::decode<std::string>(reader);
-            throw T{message};
+            throw T {message};
         }
     };
 

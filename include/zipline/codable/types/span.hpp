@@ -8,10 +8,8 @@ namespace zipline {
     template <typename T, io::writer Writer>
     requires encodable<T, Writer>
     struct encoder<std::span<const T>, Writer> {
-        static auto encode(
-            std::span<const T> span,
-            Writer& writer
-        ) -> ext::task<> {
+        static auto encode(std::span<const T> span, Writer& writer)
+            -> ext::task<> {
             const auto size = span.size();
             TIMBER_TRACE("encode span({:L})", size);
 
@@ -26,10 +24,8 @@ namespace zipline {
 
     template <io::writer Writer>
     struct encoder<std::span<const std::byte>, Writer> {
-        static auto encode(
-            std::span<const std::byte> bytes,
-            Writer& writer
-        ) -> ext::task<> {
+        static auto encode(std::span<const std::byte> bytes, Writer& writer)
+            -> ext::task<> {
             const auto size = bytes.size();
             TIMBER_TRACE("encode bytes({:L})", size);
 

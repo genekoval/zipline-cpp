@@ -2,12 +2,10 @@
 
 namespace zipline {
     error_codes::error_codes(map_type&& codes) :
-        codes(std::forward<map_type>(codes))
-    {}
+        codes(std::forward<map_type>(codes)) {}
 
-    auto error_codes::code(
-        const std::exception& ex
-    ) const -> std::optional<status_type> {
+    auto error_codes::code(const std::exception& ex) const
+        -> std::optional<status_type> {
         const auto result = codes.find(std::type_index(typeid(ex)));
 
         if (result == codes.end()) return {};
@@ -16,8 +14,7 @@ namespace zipline {
 
     error_thrower::error_thrower(thrower_list&& throwers, std::size_t size) :
         throwers(std::forward<thrower_list>(throwers)),
-        size(size)
-    {}
+        size(size) {}
 
     auto error_thrower::throw_error(
         status_type status,

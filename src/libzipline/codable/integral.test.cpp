@@ -18,34 +18,18 @@ protected:
     }
 };
 
-TEST_F(IntegralTest, Int8) {
-    test_integral<std::int8_t>();
-}
+TEST_F(IntegralTest, Int8) { test_integral<std::int8_t>(); }
 
-TEST_F(IntegralTest, Int16) {
-    test_integral<std::int16_t>();
-}
+TEST_F(IntegralTest, Int16) { test_integral<std::int16_t>(); }
 
-TEST_F(IntegralTest, Int32) {
-    test_integral<std::int32_t>();
-}
+TEST_F(IntegralTest, Int32) { test_integral<std::int32_t>(); }
 
-TEST_F(IntegralTest, Int64) {
-    test_integral<std::int64_t>();
-}
+TEST_F(IntegralTest, Int64) { test_integral<std::int64_t>(); }
 
-TEST_F(IntegralTest, UInt8) {
-    test_integral<std::uint8_t>();
-}
+TEST_F(IntegralTest, UInt8) { test_integral<std::uint8_t>(); }
 
-TEST_F(IntegralTest, UInt16) {
-    test_integral<std::uint16_t>();
-}
+TEST_F(IntegralTest, UInt16) { test_integral<std::uint16_t>(); }
 
-TEST_F(IntegralTest, UInt32) {
-    test_integral<std::uint32_t>();
-}
+TEST_F(IntegralTest, UInt32) { test_integral<std::uint32_t>(); }
 
-TEST_F(IntegralTest, UInt64) {
-    test_integral<std::uint64_t>();
-}
+TEST_F(IntegralTest, UInt64) { test_integral<std::uint64_t>(); }

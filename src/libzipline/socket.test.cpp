@@ -3,25 +3,16 @@
 namespace zipline::test {
     buffer::buffer() : storage(1024) {}
 
-    auto buffer::await_write() -> ext::task<> {
-        co_return;
-    }
+    auto buffer::await_write() -> ext::task<> { co_return; }
 
-    auto buffer::empty() const noexcept -> bool {
-        return storage.empty();
-    }
+    auto buffer::empty() const noexcept -> bool { return storage.empty(); }
 
-    auto buffer::fill_buffer() -> ext::task<bool> {
-        co_return true;
-    }
+    auto buffer::fill_buffer() -> ext::task<bool> { co_return true; }
 
-    auto buffer::flush() -> ext::task<> {
-        co_return;
-    }
+    auto buffer::flush() -> ext::task<> { co_return; }
 
-    auto buffer::read(
-        std::size_t len
-    ) -> ext::task<std::span<const std::byte>> {
+    auto buffer::read(std::size_t len)
+        -> ext::task<std::span<const std::byte>> {
         co_return storage.read(len);
     }
 

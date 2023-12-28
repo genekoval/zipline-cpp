@@ -24,9 +24,7 @@ namespace zipline::detail {
                     code = *result + 2;
                     task = error.encode(wrapper);
                 }
-                else {
-                    TIMBER_ERROR(error.what());
-                }
+                else { TIMBER_ERROR(error.what()); }
             }
             catch (const std::exception& ex) {
                 TIMBER_ERROR(ex.what());
@@ -41,8 +39,7 @@ namespace zipline::detail {
 
         responder(const error_codes& errors, Writer& writer) :
             errors(errors),
-            writer(writer)
-        {}
+            writer(writer) {}
     };
 }
 
@@ -55,8 +52,7 @@ namespace zipline {
     public:
         response(const error_thrower& errors, Reader& reader) :
             errors(errors),
-            reader(reader)
-        {}
+            reader(reader) {}
 
         auto read() const -> ext::task<T> {
             const auto status = co_await zipline::decode<status_type>(reader);
@@ -78,8 +74,7 @@ namespace zipline {
     requires encodable<T, Writer> || std::is_void_v<T>
     struct responder : private detail::responder<Writer> {
         responder(const error_codes& errors, Writer& writer) :
-            detail::responder<Writer>(errors, writer)
-        {}
+            detail::responder<Writer>(errors, writer) {}
 
         template <typename Callable, typename Args>
         auto write(Callable&& callable, Args&& args) const -> ext::task<> {
@@ -108,8 +103,7 @@ namespace zipline {
     template <io::writer Writer>
     struct responder<void, Writer> : private detail::responder<Writer> {
         responder(const error_codes& errors, Writer& writer) :
-            detail::responder<Writer>(errors, writer)
-        {}
+            detail::responder<Writer>(errors, writer) {}
 
         template <typename Callable, typename Args>
         auto write(Callable&& callable, Args&& args) const -> ext::task<> {
@@ -129,11 +123,10 @@ namespace zipline {
     };
 
     template <typename T, io::reader Reader>
-    requires
-        (decodable<T, Reader> || std::is_void_v<T>) &&
-        requires (const Reader& reader) {
-            { reader.errors } -> std::same_as<const error_thrower&>;
-        }
+    requires(decodable<T, Reader> || std::is_void_v<T>) &&
+            requires(const Reader& reader) {
+                { reader.errors } -> std::same_as<const error_thrower&>;
+            }
     struct decoder<response<T, Reader>, Reader> {
         static auto decode(Reader& reader) -> ext::task<response<T, Reader>> {
             co_return response<T, Reader>(reader.errors, reader);

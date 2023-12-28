@@ -22,8 +22,8 @@ namespace zipline::io {
     struct abstract_reader {
         virtual auto fill_buffer() -> ext::task<bool> = 0;
 
-        virtual auto read(std::size_t len) ->
-            ext::task<std::span<const std::byte>> = 0;
+        virtual auto read(std::size_t len)
+            -> ext::task<std::span<const std::byte>> = 0;
 
         virtual auto read(void* dest, std::size_t len) -> ext::task<> = 0;
     };
@@ -35,10 +35,8 @@ namespace zipline::io {
 
         virtual auto flush() -> ext::task<> = 0;
 
-        virtual auto try_write(
-            const void* src,
-            std::size_t len
-        ) -> std::size_t = 0;
+        virtual auto try_write(const void* src, std::size_t len)
+            -> std::size_t = 0;
 
         virtual auto write(const void* src, std::size_t len) -> ext::task<> = 0;
     };
@@ -57,9 +55,8 @@ namespace zipline::io {
             return inner.fill_buffer();
         }
 
-        auto read(
-            std::size_t len
-        ) -> ext::task<std::span<const std::byte>> override {
+        auto read(std::size_t len)
+            -> ext::task<std::span<const std::byte>> override {
             return inner.read(len);
         }
 
@@ -78,21 +75,14 @@ namespace zipline::io {
             return inner.await_write();
         }
 
-        auto flush() -> ext::task<> override {
-            return inner.flush();
-        }
+        auto flush() -> ext::task<> override { return inner.flush(); }
 
-        auto try_write(
-            const void* src,
-            std::size_t len
-        ) -> std::size_t override {
+        auto try_write(const void* src, std::size_t len)
+            -> std::size_t override {
             return inner.try_write(src, len);
         }
 
-        auto write(
-            const void* src,
-            std::size_t len
-        ) -> ext::task<> override {
+        auto write(const void* src, std::size_t len) -> ext::task<> override {
             return inner.write(src, len);
         }
     };

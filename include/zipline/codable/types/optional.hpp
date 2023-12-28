@@ -18,22 +18,17 @@ namespace zipline {
                 has_value ? "has value" : "no value"
             );
 
-            if (has_value) {
-                co_return co_await zipline::decode<T>(reader);
-            }
+            if (has_value) { co_return co_await zipline::decode<T>(reader); }
 
             co_return std::nullopt;
         }
-
     };
 
     template <typename T, io::writer Writer>
     requires encodable<T, Writer>
     struct encoder<std::optional<T>, Writer> {
-        static auto encode(
-            const std::optional<T>& optional,
-            Writer& writer
-        ) -> ext::task<> {
+        static auto encode(const std::optional<T>& optional, Writer& writer)
+            -> ext::task<> {
             const auto has_value = optional.has_value();
 
             TIMBER_TRACE(

@@ -7,10 +7,7 @@
 
 namespace zipline {
     template <typename Inner, typename EventT>
-    requires
-        io::reader<Inner> &&
-        io::writer<Inner> &&
-        codable<EventT, Inner>
+    requires io::reader<Inner> && io::writer<Inner> && codable<EventT, Inner>
     struct client {
         const error_thrower& errors;
 
@@ -21,20 +18,13 @@ namespace zipline {
         template <typename... Args>
         client(const error_thrower& errors, Args&&... args) :
             errors(errors),
-            inner(std::forward<Args>(args)...)
-        {}
+            inner(std::forward<Args>(args)...) {}
 
-        auto await_write() -> ext::task<> {
-            return inner.await_write();
-        }
+        auto await_write() -> ext::task<> { return inner.await_write(); }
 
-        auto fill_buffer() -> ext::task<bool> {
-            return inner.fill_buffer();
-        }
+        auto fill_buffer() -> ext::task<bool> { return inner.fill_buffer(); }
 
-        auto flush() -> ext::task<> {
-            return inner.flush();
-        }
+        auto flush() -> ext::task<> { return inner.flush(); }
 
         auto read(std::size_t len) -> ext::task<std::span<const std::byte>> {
             return inner.read(len);
@@ -58,7 +48,7 @@ namespace zipline {
             co_return co_await res.read();
         }
 
-        template <typename R, typename ...Args>
+        template <typename R, typename... Args>
         auto send(EventT event, const Args&... args) -> ext::task<R> {
             co_await start(event, args...);
             co_return co_await read_response<R>();
@@ -77,7 +67,7 @@ namespace zipline {
             return inner.write(src, len);
         }
 
-        template <typename ...T>
+        template <typename... T>
         auto write_all(const T&... t) -> ext::task<> {
             (co_await zipline::encode(t, *this), ...);
         }

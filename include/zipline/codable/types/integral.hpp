@@ -41,8 +41,9 @@ namespace zipline {
     template <io::reader Reader>
     struct decoder<std::int8_t, Reader> {
         static auto decode(Reader& reader) -> ext::task<std::int8_t> {
-            co_return co_await
-                detail::decoder<std::int8_t, Reader>::decode(reader);
+            co_return co_await detail::decoder<std::int8_t, Reader>::decode(
+                reader
+            );
         }
     };
 
@@ -56,8 +57,9 @@ namespace zipline {
     template <io::reader Reader>
     struct decoder<std::int16_t, Reader> {
         static auto decode(Reader& reader) -> ext::task<std::int16_t> {
-            co_return co_await
-                detail::decoder<std::int16_t, Reader>::decode(reader);
+            co_return co_await detail::decoder<std::int16_t, Reader>::decode(
+                reader
+            );
         }
     };
 
@@ -71,8 +73,9 @@ namespace zipline {
     template <io::reader Reader>
     struct decoder<std::int32_t, Reader> {
         static auto decode(Reader& reader) -> ext::task<std::int32_t> {
-            co_return co_await
-                detail::decoder<std::int32_t, Reader>::decode(reader);
+            co_return co_await detail::decoder<std::int32_t, Reader>::decode(
+                reader
+            );
         }
     };
 
@@ -86,8 +89,9 @@ namespace zipline {
     template <io::reader Reader>
     struct decoder<std::int64_t, Reader> {
         static auto decode(Reader& reader) -> ext::task<std::int64_t> {
-            co_return co_await
-                detail::decoder<std::int64_t, Reader>::decode(reader);
+            co_return co_await detail::decoder<std::int64_t, Reader>::decode(
+                reader
+            );
         }
     };
 
@@ -101,8 +105,9 @@ namespace zipline {
     template <io::reader Reader>
     struct decoder<std::uint8_t, Reader> {
         static auto decode(Reader& reader) -> ext::task<std::uint8_t> {
-            co_return co_await
-                detail::decoder<std::uint8_t, Reader>::decode(reader);
+            co_return co_await detail::decoder<std::uint8_t, Reader>::decode(
+                reader
+            );
         }
     };
 
@@ -116,8 +121,9 @@ namespace zipline {
     template <io::reader Reader>
     struct decoder<std::uint16_t, Reader> {
         static auto decode(Reader& reader) -> ext::task<std::uint16_t> {
-            co_return co_await
-                detail::decoder<std::uint16_t, Reader>::decode(reader);
+            co_return co_await detail::decoder<std::uint16_t, Reader>::decode(
+                reader
+            );
         }
     };
 
@@ -131,8 +137,9 @@ namespace zipline {
     template <io::reader Reader>
     struct decoder<std::uint32_t, Reader> {
         static auto decode(Reader& reader) -> ext::task<std::uint32_t> {
-            co_return co_await
-                detail::decoder<std::uint32_t, Reader>::decode(reader);
+            co_return co_await detail::decoder<std::uint32_t, Reader>::decode(
+                reader
+            );
         }
     };
 
@@ -146,8 +153,9 @@ namespace zipline {
     template <io::reader Reader>
     struct decoder<std::uint64_t, Reader> {
         static auto decode(Reader& reader) -> ext::task<std::uint64_t> {
-            co_return co_await
-                detail::decoder<std::uint64_t, Reader>::decode(reader);
+            co_return co_await detail::decoder<std::uint64_t, Reader>::decode(
+                reader
+            );
         }
     };
 

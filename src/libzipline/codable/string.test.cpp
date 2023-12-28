@@ -4,13 +4,9 @@ using namespace std::literals;
 
 using StringTest = CoderTest;
 
-TEST_F(StringTest, EmptyString) {
-    test(std::string());
-}
+TEST_F(StringTest, EmptyString) { test(std::string()); }
 
-TEST_F(StringTest, String) {
-    test(std::string("Hello, World!"));
-}
+TEST_F(StringTest, String) { test(std::string("Hello, World!")); }
 
 TEST_F(StringTest, StringView) {
     [&]() -> ext::detached_task {
